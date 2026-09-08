@@ -69,13 +69,19 @@ public class IntegracaoConexaoTestes
 
     private static TrabalhadorAgente CriarRobo(Uri url, string token)
     {
+        var pastaTmp = Directory.CreateTempSubdirectory("agente_int").FullName;
         var config = new ConfiguracaoAgente
         {
             ConexaoSql = "nao-usado-neste-teste",
             BackendUrl = url.ToString(),
             TokenAgente = token,
+            CatalogoCaminho = Path.Combine(pastaTmp, "catalogo.json"), // nao existe: sem catalogo
         };
 
-        return new TrabalhadorAgente(NullLogger<TrabalhadorAgente>.Instance, config, OpcoesRapidas);
+        var gestor = new AgenteShop9.Catalogos.GestorCatalogo(
+            NullLogger<AgenteShop9.Catalogos.GestorCatalogo>.Instance, config);
+
+        return new TrabalhadorAgente(
+            NullLogger<TrabalhadorAgente>.Instance, config, OpcoesRapidas, gestor);
     }
 }

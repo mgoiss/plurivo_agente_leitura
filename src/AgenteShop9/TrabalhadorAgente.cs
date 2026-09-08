@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using AgenteShop9.Catalogos;
 using AgenteShop9.Conexao;
 using AgenteShop9.Configuracao;
 using AgenteShop9.Mensagens;
@@ -14,10 +15,13 @@ namespace AgenteShop9;
 public sealed class TrabalhadorAgente(
     ILogger<TrabalhadorAgente> log,
     ConfiguracaoAgente config,
-    OpcoesAgente opcoes) : BackgroundService
+    OpcoesAgente opcoes,
+    GestorCatalogo gestorCatalogo) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        gestorCatalogo.Inicializar();
+
         var url = new Uri(config.BackendUrl);
         var politica = new PoliticaReconexao(opcoes.ReconexaoEsperaInicial, opcoes.ReconexaoEsperaMaxima);
 
@@ -78,7 +82,8 @@ public sealed class TrabalhadorAgente(
         var versao = VersaoAgente.Atual;
         while (!ct.IsCancellationRequested && cliente.Estado == WebSocketState.Open)
         {
-            await cliente.EnviarJsonAsync(new Heartbeat { VersaoAgente = versao }, ct);
+            await cliente.EnviarJsonAsync(
+                new Heartbeat { VersaoAgente = versao, VersaoCatalogo = gestorCatalogo.VersaoAceita }, ct);
             log.LogDebug("Heartbeat enviado.");
             await Task.Delay(opcoes.IntervaloHeartbeat, ct);
         }

@@ -1,4 +1,5 @@
 using AgenteShop9;
+using AgenteShop9.Catalogos;
 using AgenteShop9.Configuracao;
 
 var caminhoConfig = CaminhoConfiguracao.Resolver(args);
@@ -17,6 +18,7 @@ builder.Services.AddSingleton(sp =>
 });
 
 builder.Services.AddSingleton(new OpcoesAgente());
+builder.Services.AddSingleton<GestorCatalogo>();
 builder.Services.AddHostedService<TrabalhadorAgente>();
 
 var host = builder.Build();

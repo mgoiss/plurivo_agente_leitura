@@ -33,6 +33,27 @@ public class LeitorConfiguracaoTestes : IDisposable
     }
 
     [Fact]
+    public void Catalogo_caminho_default_e_ao_lado_do_config()
+    {
+        var config = LeitorConfiguracao.Ler(Arquivo(
+            """{ "conexao_sql": "s", "backend_url": "wss://x/agente", "token_agente": "abc" }"""));
+
+        Assert.Equal(Path.Combine(_dir, "catalogo.json"), config.CatalogoCaminho);
+    }
+
+    [Fact]
+    public void Catalogo_caminho_explicito_e_respeitado()
+    {
+        var config = LeitorConfiguracao.Ler(Arquivo(
+            """
+            { "conexao_sql": "s", "backend_url": "wss://x/agente", "token_agente": "abc",
+              "catalogo_caminho": "/outro/lugar/catalogo.json" }
+            """));
+
+        Assert.Equal("/outro/lugar/catalogo.json", config.CatalogoCaminho);
+    }
+
+    [Fact]
     public void Arquivo_inexistente_da_erro_claro()
     {
         var ex = Assert.Throws<ConfiguracaoInvalidaException>(

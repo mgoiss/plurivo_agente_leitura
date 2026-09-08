@@ -1,5 +1,6 @@
 {
   "conexao_sql": "Server=localhost;Database=Shop9;User Id=app_plataforma;Password=SUA_SENHA;Encrypt=True;TrustServerCertificate=True;Connection Timeout=15",
   "backend_url": "wss://api.suaplataforma.com.br/agente",
-  "token_agente": "cole-aqui-o-token-mostrado-uma-unica-vez-na-criacao-do-tenant"
+  "token_agente": "cole-aqui-o-token-mostrado-uma-unica-vez-na-criacao-do-tenant",
+  "catalogo_caminho": "C:\\AgenteShop9\\catalogo.json"
 }

@@ -17,6 +17,7 @@ public static class LeitorConfiguracao
         [JsonPropertyName("conexao_sql")] public string? ConexaoSql { get; init; }
         [JsonPropertyName("backend_url")] public string? BackendUrl { get; init; }
         [JsonPropertyName("token_agente")] public string? TokenAgente { get; init; }
+        [JsonPropertyName("catalogo_caminho")] public string? CatalogoCaminho { get; init; }
     }
 
     public static ConfiguracaoAgente Ler(string caminho, ILogger? logger = null)
@@ -63,11 +64,17 @@ public static class LeitorConfiguracao
             throw new ConfiguracaoInvalidaException(
                 $"backend_url deve comecar com ws:// ou wss:// (recebido: {dto.BackendUrl}).");
 
+        var pastaConfig = Path.GetDirectoryName(Path.GetFullPath(caminho)) ?? ".";
+        var catalogoCaminho = string.IsNullOrWhiteSpace(dto.CatalogoCaminho)
+            ? Path.Combine(pastaConfig, "catalogo.json")
+            : dto.CatalogoCaminho.Trim();
+
         return new ConfiguracaoAgente
         {
             ConexaoSql = dto.ConexaoSql!.Trim(),
             BackendUrl = dto.BackendUrl!.Trim(),
             TokenAgente = dto.TokenAgente!.Trim(),
+            CatalogoCaminho = catalogoCaminho,
         };
     }
 }

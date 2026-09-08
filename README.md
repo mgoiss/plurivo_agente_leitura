@@ -5,16 +5,22 @@ backend por WebSocket, manda sinal de vida e reconecta sozinho. **.NET 10 / C#.*
 
 Fonte da verdade: `../especificacao/`. Este README cobre só como rodar e publicar.
 
-## O que já existe (item 1.2 do roteiro)
+## O que já existe (itens 1.2 e 1.3 do roteiro)
 
-- lê o `config.json` (`conexao_sql`, `backend_url`, `token_agente` — **sem** tenant);
+- lê o `config.json` (`conexao_sql`, `backend_url`, `token_agente`, e o opcional
+  `catalogo_caminho` — **sem** tenant);
 - conecta no `backend_url` **validando o certificado TLS** (nunca desligado);
 - autentica com `Authorization: Bearer <token_agente>` no handshake;
-- manda heartbeat a cada 30s;
-- reconecta sozinho com espera 1s → 2s → 4s → … → 60s, sem desistir.
+- manda heartbeat a cada 30s, com o `versao_catalogo` aceito;
+- reconecta sozinho com espera 1s → 2s → 4s → … → 60s, sem desistir;
+- na subida, se houver um `catalogo.json` + `.minisig` no `catalogo_caminho`
+  (default: ao lado do `config.json`), **verifica a assinatura minisign** com a
+  chave pública embutida, confere o SHA-256, exige `versao=` == `versao_catalogo`,
+  e só aceita se a versão for **maior** que a do catálogo já aceito
+  (anti-retrocesso). O catálogo aceito fica em `<pasta>/dados/`.
 
-**Ainda não:** verificar assinatura do catálogo (1.3), executar no SQL Server (1.4),
-auto-update (4.1).
+**Ainda não:** executar operação no SQL Server (1.4), baixar o catálogo do
+backend e auto-update do binário (4.1).
 
 ## Rodar em desenvolvimento (Mac / Linux / Windows)
 

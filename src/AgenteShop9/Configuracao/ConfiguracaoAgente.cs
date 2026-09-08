@@ -17,4 +17,11 @@ public sealed record ConfiguracaoAgente
 
     /// <summary>Segredo unico deste cliente. Vai no cabecalho Authorization do handshake.</summary>
     public required string TokenAgente { get; init; }
+
+    /// <summary>
+    /// Caminho do catalogo.json candidato local (o .minisig e assumido ao lado,
+    /// com sufixo .minisig). Opcional no config; default: catalogo.json na mesma
+    /// pasta do proprio config. Baixar do backend e o item 4.1.
+    /// </summary>
+    public required string CatalogoCaminho { get; init; }
 }
