@@ -15,6 +15,11 @@ namespace AgenteShop9.Conexao;
 /// </summary>
 public sealed class ClienteBackend : IAsyncDisposable
 {
+    private static readonly JsonSerializerOptions OpcoesJson = new()
+    {
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private readonly ClientWebSocket _ws = new();
 
     public ClienteBackend(string tokenAgente)
@@ -29,16 +34,15 @@ public sealed class ClienteBackend : IAsyncDisposable
 
     public async Task EnviarJsonAsync<T>(T mensagem, CancellationToken ct)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(mensagem);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(mensagem, OpcoesJson);
         await _ws.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, ct);
     }
 
     /// <summary>
-    /// Le mensagens do backend ate a conexao fechar ou o token cancelar. Nesta
-    /// versao o conteudo e so repassado ao callback (para log); roteamento de
-    /// operacoes vem em tarefa posterior.
+    /// Le mensagens do backend ate a conexao fechar ou o token cancelar, e
+    /// entrega cada uma ao callback (que trata `executar`, ignora `heartbeat_ok`, etc.).
     /// </summary>
-    public async Task ReceberAteFecharAsync(Action<string> aoReceber, CancellationToken ct)
+    public async Task ReceberAteFecharAsync(Func<string, Task> aoReceber, CancellationToken ct)
     {
         var buffer = new byte[8192];
         while (_ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
@@ -57,7 +61,7 @@ public sealed class ClienteBackend : IAsyncDisposable
                 ms.Write(buffer, 0, resultado.Count);
             } while (!resultado.EndOfMessage);
 
-            aoReceber(Encoding.UTF8.GetString(ms.ToArray()));
+            await aoReceber(Encoding.UTF8.GetString(ms.ToArray()));
         }
     }
 

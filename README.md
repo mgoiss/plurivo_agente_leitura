@@ -17,10 +17,14 @@ Fonte da verdade: `../especificacao/`. Este README cobre só como rodar e public
   (default: ao lado do `config.json`), **verifica a assinatura minisign** com a
   chave pública embutida, confere o SHA-256, exige `versao=` == `versao_catalogo`,
   e só aceita se a versão for **maior** que a do catálogo já aceito
-  (anti-retrocesso). O catálogo aceito fica em `<pasta>/dados/`.
+  (anti-retrocesso). O catálogo aceito fica em `<pasta>/dados/`;
+- ao receber `{"tipo":"executar", ...}`, acha a operação **pelo nome** no
+  catálogo aceito, valida os parâmetros contra a declaração (obrigatório? tipo?)
+  **antes** de tocar no banco, roda o SQL parametrizado no SQL Server local e
+  devolve `{"tipo":"resultado", ..., "linhas":[...]}` (spec 3.4). Mensagem de
+  erro nunca expõe a connection string.
 
-**Ainda não:** executar operação no SQL Server (1.4), baixar o catálogo do
-backend e auto-update do binário (4.1).
+**Ainda não:** baixar o catálogo do backend e auto-update do binário (4.1).
 
 ## Rodar em desenvolvimento (Mac / Linux / Windows)
 

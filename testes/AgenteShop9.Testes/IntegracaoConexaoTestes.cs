@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AgenteShop9;
 using AgenteShop9.Configuracao;
+using AgenteShop9.Operacoes;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AgenteShop9.Testes;
@@ -67,7 +68,38 @@ public class IntegracaoConexaoTestes
         }
     }
 
-    private static TrabalhadorAgente CriarRobo(Uri url, string token)
+    [Fact]
+    public async Task Robo_responde_executar_com_resultado()
+    {
+        await using var servidor = new BackendDeMentira();
+        await servidor.IniciarAsync();
+
+        var executor = new ExecutorFake();
+        var robo = CriarRobo(servidor.UrlAgente, "token-de-teste", executor);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        await robo.StartAsync(cts.Token);
+        try
+        {
+            await servidor.EsperarConexaoAsync(cts.Token);
+            await servidor.EsperarMensagemDoTipoAsync("heartbeat", cts.Token); // robo ja no laco
+
+            await servidor.EnviarAoAgenteAsync(
+                """{"tipo":"executar","id_requisicao":"req-1","operacao":"listar_produtos_estoque","parametros":{"CodigoFilial":1}}""");
+
+            var resp = await servidor.EsperarMensagemDoTipoAsync("resultado", cts.Token);
+            using var doc = JsonDocument.Parse(resp);
+            Assert.Equal("req-1", doc.RootElement.GetProperty("id_requisicao").GetString());
+            Assert.Equal("ok", doc.RootElement.GetProperty("status").GetString());
+            Assert.Equal("listar_produtos_estoque", executor.UltimaOperacao);
+        }
+        finally
+        {
+            await robo.StopAsync(CancellationToken.None);
+        }
+    }
+
+    private static TrabalhadorAgente CriarRobo(Uri url, string token, IExecutorOperacao? executor = null)
     {
         var pastaTmp = Directory.CreateTempSubdirectory("agente_int").FullName;
         var config = new ConfiguracaoAgente
@@ -82,6 +114,25 @@ public class IntegracaoConexaoTestes
             NullLogger<AgenteShop9.Catalogos.GestorCatalogo>.Instance, config);
 
         return new TrabalhadorAgente(
-            NullLogger<TrabalhadorAgente>.Instance, config, OpcoesRapidas, gestor);
+            NullLogger<TrabalhadorAgente>.Instance, config, OpcoesRapidas, gestor,
+            executor ?? new ExecutorFake());
+    }
+
+    private sealed class ExecutorFake : IExecutorOperacao
+    {
+        public string? UltimaOperacao { get; private set; }
+
+        public Task<MensagemResultado> ExecutarAsync(JsonElement pedido, CancellationToken ct)
+        {
+            UltimaOperacao = pedido.TryGetProperty("operacao", out var o) ? o.GetString() : null;
+            var id = pedido.TryGetProperty("id_requisicao", out var i) ? i.GetString() : null;
+            return Task.FromResult(new MensagemResultado
+            {
+                IdRequisicao = id,
+                Status = "ok",
+                Linhas = new List<IReadOnlyDictionary<string, object?>>(),
+                DuracaoMs = 1,
+            });
+        }
     }
 }

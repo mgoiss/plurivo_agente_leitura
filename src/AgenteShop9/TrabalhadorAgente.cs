@@ -1,22 +1,26 @@
 using System.Net.WebSockets;
+using System.Text.Json;
 using AgenteShop9.Catalogos;
 using AgenteShop9.Conexao;
 using AgenteShop9.Configuracao;
 using AgenteShop9.Mensagens;
+using AgenteShop9.Operacoes;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace AgenteShop9;
 
 /// <summary>
-/// O robo em si: conecta no backend, manda heartbeat e reconecta sozinho.
-/// Roda como serviço do Windows (ver Program.cs). Item 1.2 do roteiro.
+/// O robo em si: conecta no backend, manda heartbeat, executa operacoes do
+/// catalogo e reconecta sozinho. Roda como serviço do Windows (ver Program.cs).
+/// Itens 1.2 e 1.4 do roteiro.
 /// </summary>
 public sealed class TrabalhadorAgente(
     ILogger<TrabalhadorAgente> log,
     ConfiguracaoAgente config,
     OpcoesAgente opcoes,
-    GestorCatalogo gestorCatalogo) : BackgroundService
+    GestorCatalogo gestorCatalogo,
+    IExecutorOperacao executor) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -68,13 +72,50 @@ public sealed class TrabalhadorAgente(
 
         var heartbeat = LacoHeartbeatAsync(cliente, sessao.Token);
         var recepcao = cliente.ReceberAteFecharAsync(
-            msg => log.LogDebug("Mensagem do backend: {Msg}", msg), sessao.Token);
+            msg => TratarMensagemAsync(cliente, msg, sessao.Token), sessao.Token);
 
         var terminou = await Task.WhenAny(heartbeat, recepcao);
         await sessao.CancelAsync();                       // encerra o outro laco
         await Task.WhenAll(heartbeat, recepcao).ContinueWith(
             _ => { }, TaskScheduler.Default);             // ignora o cancelamento esperado
         await terminou;                                   // re-lanca a causa real da queda, se houve
+    }
+
+    private async Task TratarMensagemAsync(ClienteBackend cliente, string msgJson, CancellationToken ct)
+    {
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(msgJson);
+        }
+        catch (JsonException)
+        {
+            log.LogWarning("Mensagem do backend nao e JSON valido; ignorando.");
+            return;
+        }
+
+        using (doc)
+        {
+            var tipo = doc.RootElement.TryGetProperty("tipo", out var t) ? t.GetString() : null;
+            switch (tipo)
+            {
+                case "heartbeat_ok":
+                    return; // ack do proprio heartbeat
+
+                case "executar":
+                    var resposta = await executor.ExecutarAsync(doc.RootElement, ct);
+                    await cliente.EnviarJsonAsync(resposta, ct);
+                    return;
+
+                default:
+                    log.LogWarning("Tipo de mensagem nao suportado: {Tipo}", tipo ?? "(ausente)");
+                    var id = doc.RootElement.TryGetProperty("id_requisicao", out var i) ? i.GetString() : null;
+                    if (id is not null)
+                        await cliente.EnviarJsonAsync(
+                            MensagemResultado.Erro(id, "tipo_desconhecido", "tipo de mensagem nao suportado."), ct);
+                    return;
+            }
+        }
     }
 
     private async Task LacoHeartbeatAsync(ClienteBackend cliente, CancellationToken ct)

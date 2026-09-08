@@ -7,4 +7,7 @@ internal static class Fixtures
 
     public static byte[] CatalogoBytes => File.ReadAllBytes(Path.Combine(Dir, "catalogo.json"));
     public static string CatalogoMinisig => File.ReadAllText(Path.Combine(Dir, "catalogo.json.minisig"));
+
+    /// <summary>O catalogo real da loja piloto (catalogo/catalogo.json), com listar_produtos_estoque.</summary>
+    public static byte[] CatalogoRealBytes => File.ReadAllBytes(Path.Combine(Dir, "catalogo-real.json"));
 }

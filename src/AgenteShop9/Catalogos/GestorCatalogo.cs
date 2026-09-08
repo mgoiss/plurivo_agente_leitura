@@ -7,7 +7,7 @@ namespace AgenteShop9.Catalogos;
 
 /// <summary>
 /// Cuida do catalogo no agente: verifica a assinatura, aplica o anti-retrocesso
-/// e guarda o catalogo aceito. Item 1.3 do roteiro.
+/// e guarda o catalogo aceito. Itens 1.3 e 1.4 do roteiro.
 ///
 /// ISSUE #5 / spec 3.3.1: so aceita catalogo com assinatura minisign valida,
 /// SHA-256 conferido, `versao=` do trusted comment igual ao `versao_catalogo`
@@ -33,8 +33,11 @@ public sealed class GestorCatalogo
             "dados", "catalogo.json");
     }
 
+    /// <summary>O catalogo aceito agora (operacoes disponiveis). null se nao ha.</summary>
+    public Catalogo? CatalogoAceito { get; private set; }
+
     /// <summary>versao_catalogo aceita agora; 0 se nao ha catalogo valido.</summary>
-    public int VersaoAceita { get; private set; }
+    public int VersaoAceita => CatalogoAceito?.VersaoCatalogo ?? 0;
 
     /// <summary>
     /// Roda uma vez na subida: carrega o catalogo aceito guardado (re-verificando,
@@ -43,23 +46,23 @@ public sealed class GestorCatalogo
     /// </summary>
     public void Inicializar()
     {
-        VersaoAceita = CarregarAceitoGuardado();
+        CatalogoAceito = CarregarAceitoGuardado();
         TentarPromoverCandidato();
         _log.LogInformation("Catalogo em uso: versao {Versao}.", VersaoAceita);
     }
 
-    private int CarregarAceitoGuardado()
+    private Catalogo? CarregarAceitoGuardado()
     {
         var r = Avaliar(_caminhoAceito, versaoMinimaExclusiva: 0);
-        if (r is null) return 0;
+        if (r is null) return null;
         if (!r.Value.aceito)
         {
             _log.LogWarning(
                 "Catalogo aceito guardado esta invalido ({Motivo}); recomecando sem catalogo.",
                 r.Value.motivo);
-            return 0;
+            return null;
         }
-        return r.Value.versao;
+        return r.Value.catalogo;
     }
 
     private void TentarPromoverCandidato()
@@ -77,8 +80,8 @@ public sealed class GestorCatalogo
         Directory.CreateDirectory(Path.GetDirectoryName(_caminhoAceito)!);
         File.Copy(_caminhoCandidato, _caminhoAceito, overwrite: true);
         File.Copy(_caminhoCandidato + ".minisig", _caminhoAceito + ".minisig", overwrite: true);
-        VersaoAceita = r.Value.versao;
-        _log.LogInformation("Catalogo versao {Versao} aceito e guardado.", r.Value.versao);
+        CatalogoAceito = r.Value.catalogo;
+        _log.LogInformation("Catalogo versao {Versao} aceito e guardado.", VersaoAceita);
     }
 
     /// <summary>
@@ -86,7 +89,8 @@ public sealed class GestorCatalogo
     /// checagens: assinatura, SHA-256, `versao=` == `versao_catalogo`, e
     /// `versao_catalogo` &gt; versaoMinimaExclusiva (anti-retrocesso).
     /// </summary>
-    private (bool aceito, int versao, string motivo)? Avaliar(string caminho, int versaoMinimaExclusiva)
+    private (bool aceito, int versao, string motivo, Catalogo? catalogo)? Avaliar(
+        string caminho, int versaoMinimaExclusiva)
     {
         var caminhoSig = caminho + ".minisig";
         if (!File.Exists(caminho) || !File.Exists(caminhoSig)) return null;
@@ -99,29 +103,29 @@ public sealed class GestorCatalogo
         // delas pode ser afrouxada ou removida.
         var assin = _verificar(conteudo, minisig);
         if (!assin.Valida)
-            return (false, 0, $"assinatura invalida: {assin.Motivo}");
+            return (false, 0, $"assinatura invalida: {assin.Motivo}", null);
 
         var comentario = ComentarioConfiavel.Analisar(assin.ComentarioConfiavel!);
 
         var sha = Convert.ToHexStringLower(SHA256.HashData(conteudo));
         if (!string.Equals(sha, comentario.Sha256, StringComparison.OrdinalIgnoreCase))
-            return (false, 0, "SHA-256 do arquivo nao bate com o sha256= do trusted comment");
+            return (false, 0, "SHA-256 do arquivo nao bate com o sha256= do trusted comment", null);
 
         Catalogo cat;
         try { cat = Catalogo.Analisar(conteudo); }
-        catch (CatalogoInvalidoException ex) { return (false, 0, ex.Message); }
+        catch (CatalogoInvalidoException ex) { return (false, 0, ex.Message, null); }
 
         if (comentario.Versao is null || comentario.Versao != cat.VersaoCatalogo)
             return (false, 0,
                 $"versao= do trusted comment ({comentario.Versao?.ToString() ?? "ausente"}) " +
-                $"difere do versao_catalogo do JSON ({cat.VersaoCatalogo})");
+                $"difere do versao_catalogo do JSON ({cat.VersaoCatalogo})", null);
 
         // ISSUE #5: anti-retrocesso. `<=` (nao `<`): reaceitar a MESMA versao ja
         // abriria a porta para reenviar uma versao antiga com defeito conhecido.
         if (cat.VersaoCatalogo <= versaoMinimaExclusiva)
             return (false, cat.VersaoCatalogo,
-                $"anti-retrocesso: versao {cat.VersaoCatalogo} <= {versaoMinimaExclusiva} em uso");
+                $"anti-retrocesso: versao {cat.VersaoCatalogo} <= {versaoMinimaExclusiva} em uso", null);
 
-        return (true, cat.VersaoCatalogo, "ok");
+        return (true, cat.VersaoCatalogo, "ok", cat);
     }
 }

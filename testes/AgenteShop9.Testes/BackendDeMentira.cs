@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -87,6 +88,26 @@ public sealed class BackendDeMentira : IAsyncDisposable
 
     public ValueTask<string> EsperarMensagemAsync(CancellationToken ct) =>
         _mensagens.Reader.ReadAsync(ct);
+
+    /// <summary>Le mensagens do agente ate achar uma do `tipo` pedido (pula heartbeat etc.).</summary>
+    public async Task<string> EsperarMensagemDoTipoAsync(string tipo, CancellationToken ct)
+    {
+        while (true)
+        {
+            var m = await _mensagens.Reader.ReadAsync(ct);
+            using var doc = JsonDocument.Parse(m);
+            if (doc.RootElement.TryGetProperty("tipo", out var t) && t.GetString() == tipo)
+                return m;
+        }
+    }
+
+    /// <summary>Envia uma mensagem do backend para o agente conectado.</summary>
+    public async Task EnviarAoAgenteAsync(string json)
+    {
+        var ws = _conexaoAtual ?? throw new InvalidOperationException("nenhum agente conectado.");
+        await ws.SendAsync(
+            Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, true, _encerrar.Token);
+    }
 
     public async Task DerrubarConexaoAtualAsync()
     {

@@ -6,12 +6,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>AgenteShop9</RootNamespace>
     <AssemblyName>AgenteShop9</AssemblyName>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- ISSUE #7: NAO ligar InvariantGlobalization. O Microsoft.Data.SqlClient
+         nao suporta esse modo e estoura NotSupportedException em SqlConnection.Open. -->
     <!-- Publicacao para o servidor Windows do cliente (um .exe so): ver agente/README.md -->
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.*" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.*" />
   </ItemGroup>
