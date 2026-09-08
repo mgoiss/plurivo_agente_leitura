@@ -94,17 +94,17 @@ public class LeitorConfiguracaoTestes : IDisposable
     }
 
     [Fact]
-    public void Tenant_id_no_arquivo_e_ignorado_sem_quebrar()
+    public void Identidade_de_loja_no_arquivo_e_ignorada_sem_quebrar()
     {
-        // O robo nunca usa tenant vindo do config (spec 3.5). O campo pode estar
-        // presente (engano, arquivo antigo) e isso NAO pode quebrar a leitura.
+        // O robo nunca usa identificacao de loja vinda do config (spec 3.5). O
+        // campo pode estar presente (engano) e isso NAO pode quebrar a leitura.
         var config = LeitorConfiguracao.Ler(Arquivo(
             """
             {
               "conexao_sql": "s",
               "backend_url": "wss://x/agente",
               "token_agente": "abc",
-              "tenant_id": "loja-fantasma"
+              "loja_ordem": "loja-fantasma"
             }
             """));
 

@@ -3,9 +3,9 @@ namespace AgenteShop9.Configuracao;
 /// <summary>
 /// Conteudo do config.json da maquina do cliente (spec 3.5).
 ///
-/// NAO tem tenant_id de proposito: o robo nunca informa o proprio tenant. Quem
-/// decide de qual loja o robo e o backend, pelo hash do token_agente. Se o
-/// config trouxer um tenant_id, ele e ignorado (ver LeitorConfiguracao).
+/// NAO tem identificacao de loja de proposito: o robo nunca informa a propria
+/// loja. Quem decide de qual loja o robo e o backend, pelo hash do token_agente.
+/// Se o config trouxer, e ignorado (ver LeitorConfiguracao).
 /// </summary>
 public sealed record ConfiguracaoAgente
 {

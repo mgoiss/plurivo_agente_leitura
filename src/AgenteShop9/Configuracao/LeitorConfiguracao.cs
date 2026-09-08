@@ -11,9 +11,9 @@ public static class LeitorConfiguracao
 {
     private sealed record Dto
     {
-        // ISSUE #3 / spec 3.5: NAO adicionar tenant_id aqui. O robo nunca informa
-        // o proprio tenant — quem decide de qual loja ele e o backend, pelo hash
-        // do token_agente. Se o arquivo trouxer tenant_id, e ignorado (abaixo).
+        // ISSUE #3 / spec 3.5: NAO adicionar identificacao de loja aqui. O robo
+        // nunca informa a propria loja — quem decide de qual loja ele e o
+        // backend, pelo hash do token_agente. Se o arquivo trouxer, e ignorado.
         [JsonPropertyName("conexao_sql")] public string? ConexaoSql { get; init; }
         [JsonPropertyName("backend_url")] public string? BackendUrl { get; init; }
         [JsonPropertyName("token_agente")] public string? TokenAgente { get; init; }
@@ -40,11 +40,13 @@ public static class LeitorConfiguracao
 
         using (doc)
         {
-            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
-                doc.RootElement.TryGetProperty("tenant_id", out _))
+            if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
-                logger?.LogWarning(
-                    "config.json contem 'tenant_id' — IGNORADO. O robo nunca informa o proprio tenant (spec 3.5).");
+                foreach (var chave in new[] { "loja_ordem", "loja" })
+                    if (doc.RootElement.TryGetProperty(chave, out _))
+                        logger?.LogWarning(
+                            "config.json contem '{Chave}' — IGNORADO. O robo nunca informa a propria loja (spec 3.5).",
+                            chave);
             }
         }
 

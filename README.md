@@ -8,7 +8,7 @@ Fonte da verdade: `../especificacao/`. Este README cobre só como rodar e public
 ## O que já existe (itens 1.2 e 1.3 do roteiro)
 
 - lê o `config.json` (`conexao_sql`, `backend_url`, `token_agente`, e o opcional
-  `catalogo_caminho` — **sem** tenant);
+  `catalogo_caminho` — **sem** identificação de loja);
 - conecta no `backend_url` **validando o certificado TLS** (nunca desligado);
 - autentica com `Authorization: Bearer <token_agente>` no handshake;
 - manda heartbeat a cada 30s, com o `versao_catalogo` aceito;

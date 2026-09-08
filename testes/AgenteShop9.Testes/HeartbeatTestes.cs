@@ -19,10 +19,10 @@ public class HeartbeatTestes
     }
 
     [Fact]
-    public void Nao_carrega_tenant_id()
+    public void Nao_carrega_identidade_de_loja()
     {
         var json = JsonSerializer.Serialize(new Heartbeat { VersaoAgente = "1.0.0" });
 
-        Assert.DoesNotContain("tenant", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("loja", json, StringComparison.OrdinalIgnoreCase);
     }
 }
