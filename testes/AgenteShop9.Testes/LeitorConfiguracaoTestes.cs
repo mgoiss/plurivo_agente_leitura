@@ -94,9 +94,9 @@ public class LeitorConfiguracaoTestes : IDisposable
     }
 
     [Fact]
-    public void Identidade_de_loja_no_arquivo_e_ignorada_sem_quebrar()
+    public void Identidade_de_servidor_no_arquivo_e_ignorada_sem_quebrar()
     {
-        // O robo nunca usa identificacao de loja vinda do config (spec 3.5). O
+        // O robo nunca usa identificacao de servidor vinda do config (spec 3.5). O
         // campo pode estar presente (engano) e isso NAO pode quebrar a leitura.
         var config = LeitorConfiguracao.Ler(Arquivo(
             """
@@ -104,7 +104,7 @@ public class LeitorConfiguracaoTestes : IDisposable
               "conexao_sql": "s",
               "backend_url": "wss://x/agente",
               "token_agente": "abc",
-              "loja_ordem": "loja-fantasma"
+              "servidor_ordem": "servidor-fantasma"
             }
             """));
 

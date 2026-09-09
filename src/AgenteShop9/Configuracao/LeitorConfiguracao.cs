@@ -11,8 +11,8 @@ public static class LeitorConfiguracao
 {
     private sealed record Dto
     {
-        // ISSUE #3 / spec 3.5: NAO adicionar identificacao de loja aqui. O robo
-        // nunca informa a propria loja — quem decide de qual loja ele e o
+        // ISSUE #3 / spec 3.5: NAO adicionar identificacao de servidor aqui. O robo
+        // nunca informa o proprio servidor — quem decide de qual servidor ele e o
         // backend, pelo hash do token_agente. Se o arquivo trouxer, e ignorado.
         [JsonPropertyName("conexao_sql")] public string? ConexaoSql { get; init; }
         [JsonPropertyName("backend_url")] public string? BackendUrl { get; init; }
@@ -42,10 +42,10 @@ public static class LeitorConfiguracao
         {
             if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
-                foreach (var chave in new[] { "loja_ordem", "loja" })
+                foreach (var chave in new[] { "servidor_ordem", "servidor" })
                     if (doc.RootElement.TryGetProperty(chave, out _))
                         logger?.LogWarning(
-                            "config.json contem '{Chave}' — IGNORADO. O robo nunca informa a propria loja (spec 3.5).",
+                            "config.json contem '{Chave}' — IGNORADO. O robo nunca informa o proprio servidor (spec 3.5).",
                             chave);
             }
         }

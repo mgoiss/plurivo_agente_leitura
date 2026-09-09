@@ -1,6 +1,6 @@
 # Agente local (robô) — shop_plus
 
-O "robô": serviço que roda no servidor de cada loja, ao lado do Shop9. Conecta no
+O "robô": serviço que roda na máquina de cada cliente, ao lado do Shop9. Conecta no
 backend por WebSocket, manda sinal de vida e reconecta sozinho. **.NET 10 / C#.**
 
 Fonte da verdade: `../especificacao/`. Este README cobre só como rodar e publicar.
@@ -8,7 +8,7 @@ Fonte da verdade: `../especificacao/`. Este README cobre só como rodar e public
 ## O que já existe (itens 1.2 e 1.3 do roteiro)
 
 - lê o `config.json` (`conexao_sql`, `backend_url`, `token_agente`, e o opcional
-  `catalogo_caminho` — **sem** identificação de loja);
+  `catalogo_caminho` — **sem** identificação de servidor);
 - conecta no `backend_url` **validando o certificado TLS** (nunca desligado);
 - autentica com `Authorization: Bearer <token_agente>` no handshake;
 - manda heartbeat a cada 30s, com o `versao_catalogo` aceito;

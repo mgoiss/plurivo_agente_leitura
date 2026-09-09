@@ -2,7 +2,7 @@ using AgenteShop9.Catalogos;
 
 namespace AgenteShop9.Testes;
 
-/// <summary>O catálogo real da loja piloto (catalogo/catalogo.json) parseia e valida.</summary>
+/// <summary>O catálogo real da servidor piloto (catalogo/catalogo.json) parseia e valida.</summary>
 public class CatalogoRealTestes
 {
     [Fact]
