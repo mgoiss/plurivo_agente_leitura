@@ -10,7 +10,7 @@ public class CatalogoRealTestes
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(14, cat.VersaoCatalogo);
+        Assert.Equal(15, cat.VersaoCatalogo);
         Assert.NotNull(cat.Operacoes);
         Assert.True(cat.Operacoes!.TryGetValue("listar_produtos_estoque", out var op));
 
@@ -18,6 +18,7 @@ public class CatalogoRealTestes
         Assert.Contains("@max_linhas", op.Sql);
         Assert.Equal(10_000, op.MaxLinhas);
         Assert.Equal(30_000, op.TimeoutMs);
+        Assert.Null(op.PeriodoMaxDias);          // operacao sem faixa de datas
 
         var filial = op.Parametros.Single(p => p.Nome == "CodigoFilial");
         Assert.Equal("inteiro", filial.Tipo);
@@ -42,6 +43,12 @@ public class CatalogoRealTestes
         Assert.Contains("GROUP BY", op.Sql);
         Assert.Equal(10_000, op.MaxLinhas);
         Assert.Equal(30_000, op.TimeoutMs);
+
+        // v15: janela maxima do periodo + RTRIM no nome da classe de imposto
+        // (o Shop9 guarda esse campo com espaco a direita).
+        Assert.Equal(92, op.PeriodoMaxDias);
+        Assert.Contains("RTRIM(clas.Nome) AS NomeClasse", op.Sql);
+        Assert.Contains("cfop.Codigo, RTRIM(clas.Nome),", op.Sql);   // tambem no GROUP BY
 
         // Obrigatórios: filial + as duas datas do período.
         var obrigatorios = op.Parametros.Where(p => p.Obrigatorio).Select(p => p.Nome).ToHashSet();

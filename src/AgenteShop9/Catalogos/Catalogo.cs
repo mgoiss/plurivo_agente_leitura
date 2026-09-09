@@ -23,6 +23,13 @@ public sealed record Operacao
     [JsonPropertyName("parametros")] public List<ParametroDeclarado> Parametros { get; init; } = [];
     [JsonPropertyName("max_linhas")] public int MaxLinhas { get; init; } = 10_000;
     [JsonPropertyName("timeout_ms")] public int TimeoutMs { get; init; } = 30_000;
+
+    /// <summary>
+    /// Janela maxima, em dias, entre os parametros `inicio` e `fim`. So faz
+    /// sentido em operacao com faixa de datas. Ausente = sem limite.
+    /// Aplicado em <see cref="Operacoes.ValidadorParametros"/> antes do banco.
+    /// </summary>
+    [JsonPropertyName("periodo_max_dias")] public int? PeriodoMaxDias { get; init; }
 }
 
 /// <summary>
@@ -65,6 +72,9 @@ public sealed record Catalogo
                 throw new CatalogoInvalidoException($"operacao '{nome}' com 'max_linhas' invalido.");
             if (op.TimeoutMs < 1)
                 throw new CatalogoInvalidoException($"operacao '{nome}' com 'timeout_ms' invalido.");
+            if (op.PeriodoMaxDias is < 1)
+                throw new CatalogoInvalidoException(
+                    $"operacao '{nome}' com 'periodo_max_dias' invalido (>= 1).");
             foreach (var p in op.Parametros)
             {
                 if (string.IsNullOrWhiteSpace(p.Nome))

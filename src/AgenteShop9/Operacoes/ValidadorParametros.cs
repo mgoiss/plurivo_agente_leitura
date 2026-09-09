@@ -38,7 +38,50 @@ public static class ValidadorParametros
                     "parametro_invalido", $"parametro '{p.Nome}' esperava tipo '{p.Tipo}'.");
         }
 
+        if (op.PeriodoMaxDias is int maxDias)
+        {
+            var erroFaixa = ValidarFaixaDatas(recebidos, maxDias);
+            if (erroFaixa is not null)
+                return erroFaixa;
+        }
+
         return null;
+    }
+
+    /// <summary>
+    /// Quando a operacao declara `periodo_max_dias`, a janela entre `inicio` e
+    /// `fim` nao pode estar invertida nem passar do limite (spec 4.4). So roda
+    /// se os dois vierem e forem data — a obrigatoriedade ja foi checada acima.
+    /// A conta e por DIA de calendario: `inicio`/`fim` podem vir com hora
+    /// (relatorios que filtram por data+hora), e a hora nas pontas nao deve
+    /// mudar a contagem de dias.
+    /// </summary>
+    private static ErroValidacao? ValidarFaixaDatas(
+        IReadOnlyDictionary<string, JsonElement> recebidos, int maxDias)
+    {
+        if (!TentarData(recebidos, "inicio", out var inicio)
+            || !TentarData(recebidos, "fim", out var fim))
+            return null;
+
+        if (fim.Date < inicio.Date)
+            return new ErroValidacao(
+                "parametro_invalido", "o 'fim' nao pode ser antes do 'inicio'.");
+
+        if ((fim.Date - inicio.Date).TotalDays > maxDias)
+            return new ErroValidacao(
+                "parametro_invalido",
+                $"o periodo entre inicio e fim nao pode passar de {maxDias} dias.");
+
+        return null;
+    }
+
+    private static bool TentarData(
+        IReadOnlyDictionary<string, JsonElement> recebidos, string nome, out DateTime data)
+    {
+        data = default;
+        return recebidos.TryGetValue(nome, out var v)
+               && v.ValueKind == JsonValueKind.String
+               && DateTime.TryParse(v.GetString(), out data);
     }
 
     private static bool TipoCompativel(string tipo, JsonElement v) => tipo switch
