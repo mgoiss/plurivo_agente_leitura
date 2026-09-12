@@ -10,7 +10,7 @@ public class CatalogoRealTestes
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(16, cat.VersaoCatalogo);
+        Assert.Equal(17, cat.VersaoCatalogo);
         Assert.NotNull(cat.Operacoes);
         Assert.True(cat.Operacoes!.TryGetValue("listar_produtos_estoque", out var op));
 
@@ -65,15 +65,15 @@ public class CatalogoRealTestes
         }
     }
 
-    // ---- paginacao: v16 padroniza as duas operacoes (issue #24) -----------
+    // ---- paginacao: v16 padroniza toda operacao (issue #24) ----------------
 
     [Fact]
-    public void Catalogo_real_v16_e_as_duas_operacoes_sao_paginadas()
+    public void Catalogo_real_v17_e_toda_operacao_e_paginada()
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(16, cat.VersaoCatalogo);
-        Assert.Equal(2, cat.Operacoes!.Count);
+        Assert.Equal(17, cat.VersaoCatalogo);
+        Assert.Equal(4, cat.Operacoes!.Count);
 
         foreach (var (_, op) in cat.Operacoes)
         {
@@ -149,5 +149,48 @@ public class CatalogoRealTestes
         Assert.Contains("clasOp.PIS_COFINS_CST", op.Desempate);
         foreach (var coluna in op.Ordenacao!.Colunas.Values)
             Assert.Contains(op.Desempate, d => d == coluna);   // ordenavel => coberto pelo desempate
+    }
+
+    // ---- v17: Etapa 5, Fase 1 (issue #32) ----------------------------------
+
+    [Fact]
+    public void Catalogo_real_tem_financeiro_recebimentos_com_filial_e_periodo()
+    {
+        var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
+
+        Assert.True(cat.Operacoes!.TryGetValue(
+            "financeiro_recebimentos_cartao_pix_em_aberto", out var op));
+
+        Assert.Contains("Financeiro_Contas", op!.Sql);
+        Assert.Contains("Pagar_Receber = 'R'", op.Sql);
+        // Situacao e opcional, 'A' (em aberto) so quando nao informado.
+        Assert.Contains("Situacao = COALESCE(@Situacao, 'A')", op.Sql);
+        Assert.Equal(31, op.PeriodoMaxDias);
+
+        var obrigatorios = op.Parametros.Where(p => p.Obrigatorio).Select(p => p.Nome).ToHashSet();
+        Assert.Equal(new HashSet<string> { "CodigoFilial", "inicio", "fim" }, obrigatorios);
+        var situacao = op.Parametros.Single(p => p.Nome == "Situacao");
+        Assert.Equal("texto", situacao.Tipo);
+        Assert.False(situacao.Obrigatorio);
+
+        Assert.Equal(["fin.Ordem"], op.Desempate);   // PK: desempate estavel
+        Assert.Contains("Financeiro_Contas", op.SqlContagem);
+        Assert.Contains("Situacao = COALESCE(@Situacao, 'A')", op.SqlContagem!);
+        Assert.DoesNotContain("ORDER BY", op.SqlContagem!);
+    }
+
+    [Fact]
+    public void Catalogo_real_tem_listar_filiais_sem_parametro()
+    {
+        var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
+
+        Assert.True(cat.Operacoes!.TryGetValue("listar_filiais", out var op));
+
+        Assert.Contains("FROM Filiais", op!.Sql);
+        Assert.Empty(op.Parametros);
+        Assert.Equal(
+            new HashSet<string> { "codigo", "nome" },
+            op.Ordenacao!.Colunas.Keys.ToHashSet());
+        Assert.Equal(["Ordem"], op.Desempate);
     }
 }
