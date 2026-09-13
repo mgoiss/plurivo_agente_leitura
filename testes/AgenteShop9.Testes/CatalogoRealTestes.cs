@@ -10,7 +10,7 @@ public class CatalogoRealTestes
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(17, cat.VersaoCatalogo);
+        Assert.Equal(20, cat.VersaoCatalogo);
         Assert.NotNull(cat.Operacoes);
         Assert.True(cat.Operacoes!.TryGetValue("listar_produtos_estoque", out var op));
 
@@ -68,11 +68,11 @@ public class CatalogoRealTestes
     // ---- paginacao: v16 padroniza toda operacao (issue #24) ----------------
 
     [Fact]
-    public void Catalogo_real_v17_e_toda_operacao_e_paginada()
+    public void Catalogo_real_v20_e_toda_operacao_e_paginada()
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(17, cat.VersaoCatalogo);
+        Assert.Equal(20, cat.VersaoCatalogo);
         Assert.Equal(4, cat.Operacoes!.Count);
 
         foreach (var (_, op) in cat.Operacoes)
@@ -163,8 +163,14 @@ public class CatalogoRealTestes
 
         Assert.Contains("Financeiro_Contas", op!.Sql);
         Assert.Contains("Pagar_Receber = 'R'", op.Sql);
-        // Situacao e opcional, 'A' (em aberto) so quando nao informado.
-        Assert.Contains("Situacao = COALESCE(@Situacao, 'A')", op.Sql);
+        Assert.Contains("fin.Parcela_Descricao", op.Sql);   // ex.: "1/10"
+        // Situacao e opcional e aceita varios codigos separados por virgula
+        // (ex.: "A,Q") — sem STRING_SPLIT porque a piloto roda em compat 110.
+        const string clausulaSituacao =
+            "(@Situacao IS NULL OR ',' + @Situacao + ',' LIKE '%,' + fin.Situacao + ',%')";
+        Assert.Contains(clausulaSituacao, op.Sql);
+        Assert.DoesNotContain("COALESCE(@Situacao", op.Sql);
+        Assert.DoesNotContain("STRING_SPLIT", op.Sql);
         Assert.Equal(31, op.PeriodoMaxDias);
 
         var obrigatorios = op.Parametros.Where(p => p.Obrigatorio).Select(p => p.Nome).ToHashSet();
@@ -175,7 +181,7 @@ public class CatalogoRealTestes
 
         Assert.Equal(["fin.Ordem"], op.Desempate);   // PK: desempate estavel
         Assert.Contains("Financeiro_Contas", op.SqlContagem);
-        Assert.Contains("Situacao = COALESCE(@Situacao, 'A')", op.SqlContagem!);
+        Assert.Contains(clausulaSituacao, op.SqlContagem!);
         Assert.DoesNotContain("ORDER BY", op.SqlContagem!);
     }
 
