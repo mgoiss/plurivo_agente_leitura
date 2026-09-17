@@ -51,6 +51,13 @@ public sealed class GestorCatalogo
         _log.LogInformation("Catalogo em uso: versao {Versao}.", VersaoAceita);
     }
 
+    /// <summary>
+    /// Reavalia o candidato em disco (item 4.1: chamado pelo <see cref="BaixadorCatalogo"/>
+    /// depois de gravar um candidato novo baixado do backend). Mesma logica da
+    /// subida — so promove se passar assinatura + SHA-256 + anti-retrocesso.
+    /// </summary>
+    public void ReavaliarCandidato() => TentarPromoverCandidato();
+
     private Catalogo? CarregarAceitoGuardado()
     {
         var r = Avaliar(_caminhoAceito, versaoMinimaExclusiva: 0);

@@ -16,6 +16,10 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.*" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.*" />
+    <!-- Item 4.1 (issue #48): HttpClient tipado para BaixadorCatalogo baixar o
+         catalogo assinado do backend (IHttpClientFactory cuida do ciclo de
+         vida/DNS — o robo roda dias/semanas como servico do Windows). -->
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.*" />
   </ItemGroup>
 
 </Project>

@@ -20,6 +20,7 @@ builder.Services.AddSingleton(sp =>
 
 builder.Services.AddSingleton(new OpcoesAgente());
 builder.Services.AddSingleton<GestorCatalogo>();
+builder.Services.AddHttpClient<BaixadorCatalogo>();
 builder.Services.AddSingleton<IExecutorOperacao, ExecutorOperacao>();
 builder.Services.AddHostedService<TrabalhadorAgente>();
 

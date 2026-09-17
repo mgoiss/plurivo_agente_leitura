@@ -112,9 +112,11 @@ public class IntegracaoConexaoTestes
 
         var gestor = new AgenteShop9.Catalogos.GestorCatalogo(
             NullLogger<AgenteShop9.Catalogos.GestorCatalogo>.Instance, config);
+        var baixador = new AgenteShop9.Catalogos.BaixadorCatalogo(
+            NullLogger<AgenteShop9.Catalogos.BaixadorCatalogo>.Instance, config, gestor, new HttpClient());
 
         return new TrabalhadorAgente(
-            NullLogger<TrabalhadorAgente>.Instance, config, OpcoesRapidas, gestor,
+            NullLogger<TrabalhadorAgente>.Instance, config, OpcoesRapidas, gestor, baixador,
             executor ?? new ExecutorFake());
     }
 

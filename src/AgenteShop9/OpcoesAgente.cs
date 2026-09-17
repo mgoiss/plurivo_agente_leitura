@@ -9,4 +9,7 @@ public sealed record OpcoesAgente
     public TimeSpan IntervaloHeartbeat { get; init; } = TimeSpan.FromSeconds(30);
     public TimeSpan ReconexaoEsperaInicial { get; init; } = TimeSpan.FromSeconds(1);
     public TimeSpan ReconexaoEsperaMaxima { get; init; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>Item 4.1: intervalo entre verificacoes de catalogo novo no backend.</summary>
+    public TimeSpan IntervaloVerificacaoCatalogo { get; init; } = TimeSpan.FromMinutes(15);
 }

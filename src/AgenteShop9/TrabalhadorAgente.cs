@@ -20,6 +20,7 @@ public sealed class TrabalhadorAgente(
     ConfiguracaoAgente config,
     OpcoesAgente opcoes,
     GestorCatalogo gestorCatalogo,
+    BaixadorCatalogo baixadorCatalogo,
     IExecutorOperacao executor) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -28,6 +29,12 @@ public sealed class TrabalhadorAgente(
 
         var url = new Uri(config.BackendUrl);
         var politica = new PoliticaReconexao(opcoes.ReconexaoEsperaInicial, opcoes.ReconexaoEsperaMaxima);
+
+        // Item 4.1: verificacao de catalogo novo roda em paralelo, independente
+        // da sessao WebSocket (e uma chamada HTTPS separada — nao precisa do
+        // /agente conectado para funcionar).
+        var verificacaoCatalogo = baixadorCatalogo.ExecutarPeriodicamenteAsync(
+            opcoes.IntervaloVerificacaoCatalogo, stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -57,6 +64,8 @@ public sealed class TrabalhadorAgente(
                 break;
             }
         }
+
+        await verificacaoCatalogo;
     }
 
     private async Task UmaSessaoAsync(Uri url, PoliticaReconexao politica, CancellationToken stoppingToken)
