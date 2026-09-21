@@ -10,7 +10,7 @@ public class CatalogoRealTestes
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(20, cat.VersaoCatalogo);
+        Assert.Equal(23, cat.VersaoCatalogo);
         Assert.NotNull(cat.Operacoes);
         Assert.True(cat.Operacoes!.TryGetValue("listar_produtos_estoque", out var op));
 
@@ -68,12 +68,12 @@ public class CatalogoRealTestes
     // ---- paginacao: v16 padroniza toda operacao (issue #24) ----------------
 
     [Fact]
-    public void Catalogo_real_v20_e_toda_operacao_e_paginada()
+    public void Catalogo_real_e_toda_operacao_e_paginada()
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(20, cat.VersaoCatalogo);
-        Assert.Equal(4, cat.Operacoes!.Count);
+        Assert.Equal(23, cat.VersaoCatalogo);
+        Assert.Equal(5, cat.Operacoes!.Count);
 
         foreach (var (_, op) in cat.Operacoes)
         {
@@ -91,7 +91,7 @@ public class CatalogoRealTestes
             Assert.Contains("COUNT(*)", op.SqlContagem);
             Assert.DoesNotContain("ORDER BY", op.SqlContagem!);
 
-            Assert.Equal(50, op.TamanhoPaginaPadrao);
+            Assert.InRange(op.TamanhoPaginaPadrao, 1, 200);
             Assert.Equal(200, op.TamanhoPaginaMax);
         }
     }
@@ -198,5 +198,24 @@ public class CatalogoRealTestes
             new HashSet<string> { "codigo", "nome" },
             op.Ordenacao!.Colunas.Keys.ToHashSet());
         Assert.Equal(["Ordem"], op.Desempate);
+    }
+
+    [Fact]
+    public void Catalogo_real_tem_vendas_emissao_com_filial_periodo_e_paginacao_estavel()
+    {
+        var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
+        var op = cat.Operacoes!["emissao_vendas_por_forma_pagamento"];
+
+        Assert.Contains("Financeiro_Formas_Recebimento_Pagamento_V2", op.Sql);
+        Assert.Contains("Data_Efetivado_Estoque", op.Sql);
+        Assert.Contains("Documento_Cancelado", op.Sql);
+        Assert.Contains("C.Agrupamento", op.Sql);
+        Assert.DoesNotContain("ORDER BY", op.Sql);
+        Assert.Contains("COUNT(*)", op.SqlContagem);
+        Assert.Equal(92, op.PeriodoMaxDias);
+        Assert.Equal(100, op.TamanhoPaginaPadrao);
+        Assert.Equal(6, op.Desempate.Count);
+        Assert.Equal(new HashSet<string> { "CodigoFilial", "inicio", "fim" },
+            op.Parametros.Where(p => p.Obrigatorio).Select(p => p.Nome).ToHashSet());
     }
 }
