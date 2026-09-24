@@ -25,7 +25,9 @@ Fonte da verdade: `../especificacao/`. Este README cobre só como rodar e public
   devolve `{"tipo":"resultado", ..., "linhas":[...]}` (spec 3.4). Mensagem de
   erro nunca expõe a connection string.
 
-**Ainda não:** baixar o catálogo do backend e auto-update do binário (4.1).
+O catálogo é distribuído pelo backend após liberação por servidor. O guia
+operacional atualizado de instalação, token, publicação e atualização fica em
+[`operacao/GUIA_CATALOGOS_AGENTES_E_ROBO.md`](../operacao/GUIA_CATALOGOS_AGENTES_E_ROBO.md).
 
 ## Rodar em desenvolvimento (Mac / Linux / Windows)
 
