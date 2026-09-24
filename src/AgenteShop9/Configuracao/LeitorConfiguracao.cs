@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace AgenteShop9.Configuracao;
@@ -61,6 +62,8 @@ public static class LeitorConfiguracao
             throw new ConfiguracaoInvalidaException(
                 "Configuracao incompleta, faltam os campos: " + string.Join(", ", faltando) + ".");
 
+        ValidarConexaoSql(dto.ConexaoSql!);
+
         if (!Uri.TryCreate(dto.BackendUrl, UriKind.Absolute, out var uri) ||
             (uri.Scheme != "ws" && uri.Scheme != "wss"))
             throw new ConfiguracaoInvalidaException(
@@ -78,5 +81,28 @@ public static class LeitorConfiguracao
             TokenAgente = dto.TokenAgente!.Trim(),
             CatalogoCaminho = catalogoCaminho,
         };
+    }
+
+    private static void ValidarConexaoSql(string texto)
+    {
+        SqlConnectionStringBuilder conexao;
+        try
+        {
+            conexao = new SqlConnectionStringBuilder(texto);
+        }
+        catch (ArgumentException)
+        {
+            throw new ConfiguracaoInvalidaException(
+                "conexao_sql nao e uma connection string SQL Server valida. Revise Server, Database e as credenciais.");
+        }
+
+        if (string.IsNullOrWhiteSpace(conexao.DataSource))
+            throw new ConfiguracaoInvalidaException(
+                "conexao_sql deve informar Server=<servidor_sql>.");
+
+        if (string.IsNullOrWhiteSpace(conexao.InitialCatalog))
+            throw new ConfiguracaoInvalidaException(
+                "conexao_sql deve informar Database=<banco_do_shop9> (por exemplo, Database=S9_Real). " +
+                "Sem esse campo, o SQL Server pode abrir o banco padrao e as consultas do Shop9 falham.");
     }
 }

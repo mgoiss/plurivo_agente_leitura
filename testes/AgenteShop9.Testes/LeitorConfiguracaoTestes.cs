@@ -36,7 +36,7 @@ public class LeitorConfiguracaoTestes : IDisposable
     public void Catalogo_caminho_default_e_ao_lado_do_config()
     {
         var config = LeitorConfiguracao.Ler(Arquivo(
-            """{ "conexao_sql": "s", "backend_url": "wss://x/agente", "token_agente": "abc" }"""));
+            """{ "conexao_sql": "Server=x;Database=Shop9", "backend_url": "wss://x/agente", "token_agente": "abc" }"""));
 
         Assert.Equal(Path.Combine(_dir, "catalogo.json"), config.CatalogoCaminho);
     }
@@ -46,7 +46,7 @@ public class LeitorConfiguracaoTestes : IDisposable
     {
         var config = LeitorConfiguracao.Ler(Arquivo(
             """
-            { "conexao_sql": "s", "backend_url": "wss://x/agente", "token_agente": "abc",
+            { "conexao_sql": "Server=x;Database=Shop9", "backend_url": "wss://x/agente", "token_agente": "abc",
               "catalogo_caminho": "/outro/lugar/catalogo.json" }
             """));
 
@@ -78,7 +78,7 @@ public class LeitorConfiguracaoTestes : IDisposable
     [InlineData("api.suaplataforma.com.br/agente")]
     public void Backend_url_que_nao_e_websocket_da_erro(string url)
     {
-        var json = $$"""{ "conexao_sql": "s", "backend_url": "{{url}}", "token_agente": "abc" }""";
+        var json = $$"""{ "conexao_sql": "Server=x;Database=Shop9", "backend_url": "{{url}}", "token_agente": "abc" }""";
 
         var ex = Assert.Throws<ConfiguracaoInvalidaException>(() => LeitorConfiguracao.Ler(Arquivo(json)));
 
@@ -101,7 +101,7 @@ public class LeitorConfiguracaoTestes : IDisposable
         var config = LeitorConfiguracao.Ler(Arquivo(
             """
             {
-              "conexao_sql": "s",
+              "conexao_sql": "Server=x;Database=Shop9",
               "backend_url": "wss://x/agente",
               "token_agente": "abc",
               "servidor_ordem": "servidor-fantasma"
@@ -109,5 +109,25 @@ public class LeitorConfiguracaoTestes : IDisposable
             """));
 
         Assert.Equal("abc", config.TokenAgente);
+    }
+
+    [Fact]
+    public void Conexao_sem_database_e_rejeitada_com_orientacao_do_banco_shop9()
+    {
+        var ex = Assert.Throws<ConfiguracaoInvalidaException>(() => LeitorConfiguracao.Ler(Arquivo(
+            """{ "conexao_sql": "Server=x;User Id=sa;Password=senha", "backend_url": "wss://x/agente", "token_agente": "abc" }""")));
+
+        Assert.Contains("Database", ex.Message);
+        Assert.Contains("S9_Real", ex.Message);
+    }
+
+    [Fact]
+    public void Conexao_sql_malformada_e_rejeitada_sem_expor_o_valor()
+    {
+        var ex = Assert.Throws<ConfiguracaoInvalidaException>(() => LeitorConfiguracao.Ler(Arquivo(
+            """{ "conexao_sql": "Server=x;Database=Shop9;palavra invalida", "backend_url": "wss://x/agente", "token_agente": "abc" }""")));
+
+        Assert.Contains("connection string", ex.Message);
+        Assert.DoesNotContain("palavra invalida", ex.Message);
     }
 }

@@ -8,7 +8,8 @@ Fonte da verdade: `../especificacao/`. Este README cobre só como rodar e public
 ## O que já existe (itens 1.2 e 1.3 do roteiro)
 
 - lê o `config.json` (`conexao_sql`, `backend_url`, `token_agente`, e o opcional
-  `catalogo_caminho` — **sem** identificação de servidor);
+  `catalogo_caminho` — **sem** identificação de servidor). A conexão deve conter
+  `Server` e `Database`: use o banco real do Shop9, por exemplo `S9_Real`;
 - conecta no `backend_url` **validando o certificado TLS** (nunca desligado);
 - autentica com `Authorization: Bearer <token_agente>` no handshake;
 - manda heartbeat a cada 30s, com o `versao_catalogo` aceito;
@@ -70,7 +71,7 @@ Crie o `config.json` pelo PowerShell — o Bloco de Notas salva como
 New-Item -ItemType Directory -Force -Path C:\AgenteShop9 | Out-Null
 @'
 {
-  "conexao_sql": "Server=localhost;Database=Shop9;Encrypt=True;TrustServerCertificate=True;Connection Timeout=15",
+  "conexao_sql": "Server=localhost;Database=S9_Real;Encrypt=True;TrustServerCertificate=True;Connection Timeout=15",
   "backend_url": "wss://api.suaplataforma.com.br/agente",
   "token_agente": "o-token-do-cliente"
 }

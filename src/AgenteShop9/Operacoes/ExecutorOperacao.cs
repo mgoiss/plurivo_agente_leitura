@@ -76,6 +76,19 @@ public sealed class ExecutorOperacao(
             log.LogWarning("Operacao {Op} estourou o timeout.", nomeOperacao);
             return MensagemResultado.Erro(idRequisicao, "timeout", "a consulta demorou demais e foi cancelada.");
         }
+        catch (SqlException ex) when (ex.Number is 4060 or 208)
+        {
+            // 4060: banco indicado nao abre. 208: a conexao abriu, mas nao
+            // encontrou uma estrutura esperada do Shop9 — comum quando o
+            // Database foi omitido e o SQL Server abriu o banco padrao.
+            // O detalhe do SQL Server fica apenas no log local.
+            log.LogError(ex, "Banco Shop9 indisponivel ou incorreto na operacao {Op}.", nomeOperacao);
+            return MensagemResultado.Erro(
+                idRequisicao,
+                "banco_shop9_incorreto",
+                "O banco configurado nao contem os dados esperados do Shop9. " +
+                "Revise Database=... em conexao_sql no config.json do agente.");
+        }
         catch (Exception ex)
         {
             // ISSUE #7 / spec 3.4: NAO devolver ex.Message para fora — pode conter
