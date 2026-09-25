@@ -10,7 +10,7 @@ public class CatalogoRealTestes
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(23, cat.VersaoCatalogo);
+        Assert.Equal(24, cat.VersaoCatalogo);
         Assert.NotNull(cat.Operacoes);
         Assert.True(cat.Operacoes!.TryGetValue("listar_produtos_estoque", out var op));
 
@@ -72,8 +72,8 @@ public class CatalogoRealTestes
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(23, cat.VersaoCatalogo);
-        Assert.Equal(5, cat.Operacoes!.Count);
+        Assert.Equal(24, cat.VersaoCatalogo);
+        Assert.Equal(7, cat.Operacoes!.Count);
 
         foreach (var (_, op) in cat.Operacoes)
         {
@@ -217,5 +217,22 @@ public class CatalogoRealTestes
         Assert.Equal(6, op.Desempate.Count);
         Assert.Equal(new HashSet<string> { "CodigoFilial", "inicio", "fim" },
             op.Parametros.Where(p => p.Obrigatorio).Select(p => p.Nome).ToHashSet());
+    }
+
+    [Fact]
+    public void Catalogo_real_tem_as_operacoes_de_produtos_para_emissao()
+    {
+        var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
+
+        Assert.True(cat.Operacoes!.TryGetValue("emissao_produtos_disponiveis", out var disponiveis));
+        Assert.Contains("@ClasseImposto IS NULL OR cla.Nome LIKE @ClasseImposto", disponiveis!.Sql);
+        Assert.Contains("SELECT COUNT(*) FROM (", disponiveis.SqlContagem);
+        Assert.Equal("inteiro", disponiveis.Parametros.Single(p => p.Nome == "CodigoFilialEstoque").Tipo);
+        Assert.Equal("texto", disponiveis.Parametros.Single(p => p.Nome == "ClasseImposto").Tipo);
+        Assert.False(disponiveis.Parametros.Single(p => p.Nome == "ClasseImposto").Obrigatorio);
+
+        Assert.True(cat.Operacoes.TryGetValue("emissao_produtos_sem_estoque", out var semEstoque));
+        Assert.Contains("m.Tipo_Operacao = 'COM'", semEstoque!.Sql);
+        Assert.Equal("inteiro", semEstoque.Parametros.Single(p => p.Nome == "DiasRecentes").Tipo);
     }
 }
