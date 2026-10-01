@@ -3,7 +3,7 @@
 O "robô": serviço que roda na máquina de cada cliente, ao lado do Shop9. Conecta no
 backend por WebSocket, manda sinal de vida e reconecta sozinho. **.NET 10 / C#.**
 
-Fonte da verdade: `../especificacao/`. Este README cobre só como rodar e publicar.
+Fonte da verdade, na raiz Plurivo: [`documentacao/especificacoes/plataforma/`](../../documentacao/especificacoes/plataforma/). Este README cobre só como rodar e publicar.
 
 ## O que já existe (itens 1.2 e 1.3 do roteiro)
 
@@ -27,7 +27,7 @@ Fonte da verdade: `../especificacao/`. Este README cobre só como rodar e public
 
 O catálogo é distribuído pelo backend após liberação por servidor. O guia
 operacional atualizado de instalação, token, publicação e atualização fica em
-[`operacao/GUIA_CATALOGOS_AGENTES_E_ROBO.md`](../operacao/GUIA_CATALOGOS_AGENTES_E_ROBO.md).
+[`documentacao/operacao/GUIA_CATALOGOS_AGENTES_E_ROBO.md`](../../documentacao/operacao/GUIA_CATALOGOS_AGENTES_E_ROBO.md).
 
 ## Rodar em desenvolvimento (Mac / Linux / Windows)
 

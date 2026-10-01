@@ -4,7 +4,7 @@ namespace AgenteShop9.Testes;
 
 /// <summary>
 /// Verificação minisign contra o par arquivo/assinatura REAL de
-/// assinatura/exemplos/ (mesmo que o `minisign -V` e o `verificar.sh` aprovam).
+/// testes/fixtures/ (mesmo que o `minisign -V` e o `verificar.sh` aprovam).
 /// </summary>
 public class VerificadorAssinaturaTestes
 {

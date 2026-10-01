@@ -2,11 +2,11 @@ namespace AgenteShop9.Assinatura;
 
 /// <summary>
 /// Chave(s) publica(s) minisign aceitas pelo agente, embutidas no binario
-/// (2a linha do arquivo .pub — ver assinatura/chaves/shop9-agente.pub). Nunca
+/// (2a linha do arquivo .pub — ver ferramentas/assinatura/chaves/shop9-agente.pub na raiz Plurivo). Nunca
 /// lidas de um arquivo ao lado do executavel.
 ///
 /// E uma lista para permitir "chave atual + proxima" numa rotacao futura
-/// (assinatura/docs/ASSINATURA.md secao 5) sem reescrever a verificacao.
+/// (ferramentas/assinatura/docs/ASSINATURA.md secao 5, raiz Plurivo) sem reescrever a verificacao.
 /// </summary>
 public static class ChavesPublicas
 {

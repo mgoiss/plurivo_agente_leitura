@@ -27,13 +27,13 @@
     <ProjectReference Include="..\..\src\AgenteShop9\AgenteShop9.csproj" />
   </ItemGroup>
 
-  <!-- Catalogo de exemplo ja assinado (assinatura/exemplos/), usado como fixture real. -->
+  <!-- Catalogo de exemplo ja assinado (testes/fixtures/), usado como fixture real. -->
   <ItemGroup>
-    <None Include="..\..\..\assinatura\exemplos\catalogo.json"
+    <None Include="..\fixtures\catalogo.json"
           Link="fixtures\catalogo.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\..\assinatura\exemplos\catalogo.json.minisig"
+    <None Include="..\fixtures\catalogo.json.minisig"
           Link="fixtures\catalogo.json.minisig" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\..\catalogo\catalogo.json"
+    <None Include="..\..\catalogo\catalogo.json"
           Link="fixtures\catalogo-real.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

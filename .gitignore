@@ -1,0 +1,8 @@
+.DS_Store
+bin/
+obj/
+CLAUDE.local.md
+# Chave PRIVADA de assinatura — NUNCA versionar (vive em ~/.shop9-assinatura/)
+*.key
+*.key.txt
+*.passphrase

@@ -1,6 +1,6 @@
 namespace AgenteShop9.Testes;
 
-/// <summary>Acesso ao catálogo de exemplo já assinado (assinatura/exemplos/).</summary>
+/// <summary>Acesso ao catálogo de exemplo já assinado (testes/fixtures/).</summary>
 internal static class Fixtures
 {
     private static string Dir => Path.Combine(AppContext.BaseDirectory, "fixtures");

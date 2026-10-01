@@ -1,0 +1,20 @@
+{
+  "versao_catalogo": 12,
+  "operacoes": {
+    "saldos_bancarios": {
+      "sql": "SELECT TOP (@max_linhas + 1) banco, agencia, conta, saldo FROM View_Financeiro_Saldos_Bancarios_Relatorio ORDER BY banco",
+      "parametros": [],
+      "max_linhas": 10000,
+      "timeout_ms": 30000
+    },
+    "movimentacao_periodo": {
+      "sql": "SELECT TOP (@max_linhas + 1) data, historico, valor FROM Financeiro_Contas_Bancarias_Lancamentos WHERE data >= @inicio AND data < DATEADD(day, 1, @fim) ORDER BY data",
+      "parametros": [
+        { "nome": "inicio", "tipo": "date", "obrigatorio": true },
+        { "nome": "fim", "tipo": "date", "obrigatorio": true, "regra": "fim >= inicio; periodo_max_dias = 92" }
+      ],
+      "max_linhas": 10000,
+      "timeout_ms": 30000
+    }
+  }
+}

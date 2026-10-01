@@ -14,7 +14,7 @@ public readonly record struct ResultadoVerificacao(bool Valida, string? Comentar
 /// <summary>
 /// Verifica um artefato (catalogo.json ou binario do agente) contra sua
 /// assinatura minisign, usando as chaves publicas embutidas. Porte de
-/// assinatura/docs/ASSINATURA.md secao 5.
+/// ferramentas/assinatura/docs/ASSINATURA.md secao 5 (raiz Plurivo).
 ///
 /// ISSUE #5 / spec 3.3.1 e 3.7: assinatura invalida = artefato DESCARTADO; o
 /// agente segue com o catalogo/versao atual. Proibido pular esta verificacao ou
