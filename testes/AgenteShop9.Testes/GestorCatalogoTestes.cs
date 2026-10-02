@@ -4,6 +4,7 @@ using System.Text.Json;
 using AgenteShop9.Assinatura;
 using AgenteShop9.Catalogos;
 using AgenteShop9.Configuracao;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AgenteShop9.Testes;
@@ -114,6 +115,47 @@ public class GestorCatalogoTestes : IDisposable
         var g3 = Gestor(StubCoerente);
         g3.Inicializar();
         Assert.Equal(5, g3.VersaoAceita);
+    }
+
+    private sealed class LoggerCapturado : ILogger<GestorCatalogo>
+    {
+        public List<LogLevel> Niveis { get; } = new();
+        public IDisposable? BeginScope<TState>(TState estado) where TState : notnull => null;
+        public bool IsEnabled(LogLevel nivel) => true;
+        public void Log<TState>(LogLevel nivel, EventId id, TState estado, Exception? ex,
+            Func<TState, Exception?, string> formatador) => Niveis.Add(nivel);
+    }
+
+    [Fact]
+    public void Candidato_maior_promove_igual_e_informativo_menor_e_aviso()
+    {
+        GravarCandidato(5);
+        Gestor(StubCoerente).Inicializar();
+
+        // maior: promove, sem aviso
+        GravarCandidato(6);
+        var logMaior = new LoggerCapturado();
+        var gMaior = new GestorCatalogo(logMaior, Config(), StubCoerente);
+        gMaior.Inicializar();
+        Assert.Equal(6, gMaior.VersaoAceita);
+        Assert.DoesNotContain(LogLevel.Warning, logMaior.Niveis);
+
+        // igual: informativo, sem aviso, nada copiado
+        var aceitoAntes = File.ReadAllBytes(AceitoPath);
+        var logIgual = new LoggerCapturado();
+        var gIgual = new GestorCatalogo(logIgual, Config(), StubCoerente);
+        gIgual.Inicializar();
+        Assert.Equal(6, gIgual.VersaoAceita);
+        Assert.DoesNotContain(LogLevel.Warning, logIgual.Niveis);
+        Assert.Equal(aceitoAntes, File.ReadAllBytes(AceitoPath));
+
+        // menor: aviso e recusado
+        GravarCandidato(4);
+        var logMenor = new LoggerCapturado();
+        var gMenor = new GestorCatalogo(logMenor, Config(), StubCoerente);
+        gMenor.Inicializar();
+        Assert.Equal(6, gMenor.VersaoAceita);
+        Assert.Contains(LogLevel.Warning, logMenor.Niveis);
     }
 
     [Fact]

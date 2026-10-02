@@ -78,6 +78,13 @@ public sealed class GestorCatalogo
         if (r is null) return; // nao ha candidato local — normal (o download e o item 4.1)
         if (!r.Value.aceito)
         {
+            // versao > 0 so vem da recusa por anti-retrocesso (assinatura/SHA/versao= devolvem 0).
+            // Mesma versao ja em uso e o caso normal a cada subida: nao e aviso.
+            if (r.Value.versao > 0 && r.Value.versao == VersaoAceita)
+            {
+                _log.LogInformation("Catalogo candidato ja e a versao {Versao} em uso.", VersaoAceita);
+                return;
+            }
             _log.LogWarning(
                 "Catalogo candidato recusado: {Motivo}. Mantendo a versao {Atual}.",
                 r.Value.motivo, VersaoAceita);
