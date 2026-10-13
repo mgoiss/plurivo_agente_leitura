@@ -6,7 +6,7 @@ SELECT 'classes' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT
 UNION ALL
 SELECT 'subclasses' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Subclasses AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)
 UNION ALL
-SELECT 'classes_imposto' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Classe_Imposto AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)
+SELECT 'classes_imposto' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Classe_Imposto AS c WHERE c.Tipo_Operacao = 'S' AND c.Inativo = 0 AND EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)
 UNION ALL
 SELECT 'unidades' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, RTRIM(c.Nome) AS Sigla FROM Unidades_Venda AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)
 UNION ALL

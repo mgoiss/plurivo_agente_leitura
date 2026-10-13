@@ -25,4 +25,17 @@ public class CatalogoCandidatoConfiguracaoTestes
             }
         }
     }
+
+    [Fact]
+    public void Classes_de_imposto_do_cadastro_so_listam_saida_e_ativas()
+    {
+        var bytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "fixtures", "catalogo.candidato-configuracao.json"));
+        var operacao = Catalogo.Analisar(bytes).Operacoes!["emissao_cadastros_produtos"];
+        foreach (var sql in new[] { operacao.Sql, operacao.SqlContagem })
+        {
+            var bloco = sql!.Split('\n').Single(l => l.Contains("'classes_imposto'"));
+            Assert.Contains("c.Tipo_Operacao = 'S'", bloco);
+            Assert.Contains("c.Inativo = 0", bloco);
+        }
+    }
 }
