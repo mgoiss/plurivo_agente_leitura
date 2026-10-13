@@ -271,3 +271,24 @@ assinatura, confere o SHA-256, exige `versao=` == `versao_catalogo` e recusa
 versão ≤ à que já roda.
 
 Detalhe da assinatura e da chave: `ferramentas/assinatura/README.md`, na raiz Plurivo.
+
+## Candidato da configuração (#73, etapa 1)
+
+`catalogo.candidato-configuracao.json` contém a proposta v25 sem assinatura.
+`catalogo.json` e sua assinatura v24 permanecem intactos. Não substituir o
+catálogo publicado por este candidato durante o desenvolvimento. Os arquivos
+`emissao_*_v2.sql` e `emissao_cadastros_produtos.sql` permitem revisar o SQL.
+
+O broker consulta cadastros globais do servidor mediante uma filial autorizada,
+pagina integralmente os produtos v2 e aplica filtros por identidade (Ordem, ou
+valor real de Tipo), combinando OU dentro do campo e E entre campos. O SQL mantém
+LIKE/família e regra de grade legados até conversão explícita na configuração.
+
+Confirmar em homologação: campos de classificação do Prod_Serv, tabelas de
+cadastros e sigla em Unidades_Venda.Nome, tipos reais encontrados nos produtos,
+Ordem_Cor/Ordem_Tamanho nos itens de compra e estoque, unicidade de variações e
+preço por tabela. Compras recentes são a fonte da variação sem saldo; não
+inventamos grade a partir de saldo inexistente. Verificar paginação/contagem,
+inclusive produto de grade sem linha no Estoque_Atual. Sem a publicação manual
+do catálogo validado, os cadastros e filtros novos exibem incompatibilidade e
+ações dependentes permanecem bloqueadas.

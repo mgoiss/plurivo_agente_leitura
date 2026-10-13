@@ -1,5 +1,5 @@
 {
-  "versao_catalogo": 24,
+  "versao_catalogo": 27,
   "operacoes": {
     "listar_produtos_estoque": {
       "sql": "SELECT prod.Ordem, prod.Codigo, prod.Nome, un.Codigo AS cod_un, un.Nome AS nome_un, clas.Codigo AS cod_classe, clas.Nome AS nome_classe, sub.Codigo AS cod_subclasse, sub.Nome AS nome_subclasse, esto.Qtde_Estoque_Atual FROM Prod_Serv AS prod INNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda INNER JOIN Classes AS clas ON clas.Ordem = prod.Ordem_Classe INNER JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse INNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem WHERE esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilial) AND (@Codigo IS NULL OR prod.Codigo = @Codigo) AND (@Nome IS NULL OR prod.Nome LIKE '%' + @Nome + '%') AND (@CodigoClasse IS NULL OR clas.Codigo = @CodigoClasse) AND (@CodigoSubclasse IS NULL OR sub.Codigo = @CodigoSubclasse) AND (@EstoqueMinimo IS NULL OR esto.Qtde_Estoque_Atual >= @EstoqueMinimo) AND (@EstoqueMaximo IS NULL OR esto.Qtde_Estoque_Atual <= @EstoqueMaximo) AND (@EstoqueMaiorQue IS NULL OR esto.Qtde_Estoque_Atual > @EstoqueMaiorQue) AND (@EstoqueMenorQue IS NULL OR esto.Qtde_Estoque_Atual < @EstoqueMenorQue)",
@@ -370,6 +370,237 @@
       "tamanho_pagina_max": 200,
       "max_linhas": 10000,
       "timeout_ms": 30000
+    },
+    "emissao_produtos_disponiveis_v2": {
+      "sql": "/* Produtos que podem entrar nas notas de uma filial, com estoque positivo.\n   Reproduz os SQLs de produtos por empresa do robo (Hortifruti Santos, PagBank e\n   Ponto das Artes). O que variava por cliente virou parametro (nunca texto):\n   filtro de classe de imposto, tabela de preco, familia excluida e grade. */\nSELECT\n    prod.Ordem AS Produto_Ordem,\n    prod.Ordem_Familia AS Familia_Ordem,\n    prod.Ordem_Classe AS Classe_Ordem,\n    prod.Ordem_Subclasse AS Subclasse_Ordem,\n    prod.Ordem_Classe_Imposto_Saida AS Classe_Imposto_Ordem,\n    prod.Codigo,\n    prod.Nome,\n    un.Nome AS Unidade,\n    prod.Tipo,\n    cla.Nome AS Classe_Imposto,\n    cla.Codigo AS Classe_Imposto_Codigo,\n    cor.Codigo AS Cor,\n    tam.Codigo AS Tamanho,\n    preco.Preco,\n    AVG(movProd.Quantidade) AS Media_Preco_Compra,\n    prod.Qtde_Fracionada_Casas_Decimais,\n    esto.Qtde_Estoque_Atual\nFROM Prod_Serv AS prod\nINNER JOIN Fabricantes AS fab ON fab.Ordem = prod.Ordem_Fabricante\nINNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda\nINNER JOIN Prod_Serv_Precos AS preco ON preco.Ordem_Prod_Serv = prod.Ordem\nINNER JOIN Classe_Imposto AS cla ON cla.Ordem = prod.Ordem_Classe_Imposto_Saida\nINNER JOIN Tabelas_Preco AS tab ON tab.Ordem = preco.Ordem_Tabela_Preco\nINNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem\n       AND esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialEstoque)\n-- Grade: sem cor/tamanho o LEFT JOIN devolve NULL e a linha segue igual.\nLEFT JOIN Cores AS cor ON cor.Ordem = esto.Ordem_Cor\nLEFT JOIN Tamanhos AS tam ON tam.Ordem = esto.Ordem_Tamanho\nINNER JOIN Movimento_Prod_Serv AS movProd ON movProd.Ordem_Prod_Serv = prod.Ordem\nINNER JOIN Movimento AS mov ON mov.Ordem = movProd.Ordem_Movimento\nWHERE movProd.Linha_Excluida = 0\n  AND mov.Data_Efetivado_Estoque >= DATEADD(DAY, -ISNULL(@DiasVendas, 90), GETDATE())\n  AND mov.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialOrigem)\n  AND mov.Tipo_Operacao = 'VND'\n  AND mov.Ordem_Operacao = (SELECT Ordem FROM Operacoes WHERE Codigo = @CodigoOperacaoVenda)\n  AND tab.Ordem = @OrdemTabelaPreco\n  AND esto.Qtde_Estoque_Atual > 0\n  AND (@ClasseImposto IS NULL OR cla.Nome LIKE @ClasseImposto)\n  AND (@CodigoFamiliaExcluir IS NULL\n       OR prod.Ordem_Familia <> (SELECT Ordem FROM Familias WHERE Codigo = @CodigoFamiliaExcluir))\n  AND (ISNULL(@ComGrade, 0) = 0 OR (cor.Codigo IS NOT NULL AND tam.Codigo IS NOT NULL))\nGROUP BY prod.Ordem, prod.Ordem_Familia, prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Classe_Imposto_Saida, prod.Codigo, prod.Nome, prod.Tipo, un.Nome, cla.Codigo, cla.Nome, cor.Codigo, tam.Codigo,\n         preco.Preco, prod.Qtde_Fracionada_Casas_Decimais, esto.Qtde_Estoque_Atual",
+      "sql_contagem": "SELECT COUNT(*) FROM (\n/* Produtos que podem entrar nas notas de uma filial, com estoque positivo.\n   Reproduz os SQLs de produtos por empresa do robo (Hortifruti Santos, PagBank e\n   Ponto das Artes). O que variava por cliente virou parametro (nunca texto):\n   filtro de classe de imposto, tabela de preco, familia excluida e grade. */\nSELECT\n    prod.Ordem AS Produto_Ordem,\n    prod.Ordem_Familia AS Familia_Ordem,\n    prod.Ordem_Classe AS Classe_Ordem,\n    prod.Ordem_Subclasse AS Subclasse_Ordem,\n    prod.Ordem_Classe_Imposto_Saida AS Classe_Imposto_Ordem,\n    prod.Codigo,\n    prod.Nome,\n    un.Nome AS Unidade,\n    prod.Tipo,\n    cla.Nome AS Classe_Imposto,\n    cla.Codigo AS Classe_Imposto_Codigo,\n    cor.Codigo AS Cor,\n    tam.Codigo AS Tamanho,\n    preco.Preco,\n    AVG(movProd.Quantidade) AS Media_Preco_Compra,\n    prod.Qtde_Fracionada_Casas_Decimais,\n    esto.Qtde_Estoque_Atual\nFROM Prod_Serv AS prod\nINNER JOIN Fabricantes AS fab ON fab.Ordem = prod.Ordem_Fabricante\nINNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda\nINNER JOIN Prod_Serv_Precos AS preco ON preco.Ordem_Prod_Serv = prod.Ordem\nINNER JOIN Classe_Imposto AS cla ON cla.Ordem = prod.Ordem_Classe_Imposto_Saida\nINNER JOIN Tabelas_Preco AS tab ON tab.Ordem = preco.Ordem_Tabela_Preco\nINNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem\n       AND esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialEstoque)\n-- Grade: sem cor/tamanho o LEFT JOIN devolve NULL e a linha segue igual.\nLEFT JOIN Cores AS cor ON cor.Ordem = esto.Ordem_Cor\nLEFT JOIN Tamanhos AS tam ON tam.Ordem = esto.Ordem_Tamanho\nINNER JOIN Movimento_Prod_Serv AS movProd ON movProd.Ordem_Prod_Serv = prod.Ordem\nINNER JOIN Movimento AS mov ON mov.Ordem = movProd.Ordem_Movimento\nWHERE movProd.Linha_Excluida = 0\n  AND mov.Data_Efetivado_Estoque >= DATEADD(DAY, -ISNULL(@DiasVendas, 90), GETDATE())\n  AND mov.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialOrigem)\n  AND mov.Tipo_Operacao = 'VND'\n  AND mov.Ordem_Operacao = (SELECT Ordem FROM Operacoes WHERE Codigo = @CodigoOperacaoVenda)\n  AND tab.Ordem = @OrdemTabelaPreco\n  AND esto.Qtde_Estoque_Atual > 0\n  AND (@ClasseImposto IS NULL OR cla.Nome LIKE @ClasseImposto)\n  AND (@CodigoFamiliaExcluir IS NULL\n       OR prod.Ordem_Familia <> (SELECT Ordem FROM Familias WHERE Codigo = @CodigoFamiliaExcluir))\n  AND (ISNULL(@ComGrade, 0) = 0 OR (cor.Codigo IS NOT NULL AND tam.Codigo IS NOT NULL))\nGROUP BY prod.Ordem, prod.Ordem_Familia, prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Classe_Imposto_Saida, prod.Codigo, prod.Nome, prod.Tipo, un.Nome, cla.Codigo, cla.Nome, cor.Codigo, tam.Codigo,\n         preco.Preco, prod.Qtde_Fracionada_Casas_Decimais, esto.Qtde_Estoque_Atual\n) AS consulta_contagem",
+      "parametros": [
+        {
+          "nome": "CodigoFilialOrigem",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        },
+        {
+          "nome": "CodigoFilialEstoque",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "CodigoOperacaoVenda",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "OrdemTabelaPreco",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "DiasVendas",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "ClasseImposto",
+          "tipo": "texto",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CodigoFamiliaExcluir",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "ComGrade",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "ordenacao": {
+        "colunas": {
+          "codigo": "prod.Codigo",
+          "nome": "prod.Nome",
+          "estoque": "esto.Qtde_Estoque_Atual"
+        },
+        "padrao": {
+          "coluna": "codigo",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "prod.Ordem",
+        "prod.Codigo",
+        "prod.Nome",
+        "prod.Tipo",
+        "un.Nome",
+        "cla.Codigo",
+        "cla.Nome",
+        "cor.Codigo",
+        "tam.Codigo",
+        "preco.Preco",
+        "prod.Qtde_Fracionada_Casas_Decimais",
+        "esto.Qtde_Estoque_Atual",
+        "prod.Ordem_Familia",
+        "prod.Ordem_Classe",
+        "prod.Ordem_Subclasse",
+        "prod.Ordem_Classe_Imposto_Saida"
+      ],
+      "tamanho_pagina_padrao": 100,
+      "tamanho_pagina_max": 200,
+      "max_linhas": 10000,
+      "timeout_ms": 30000
+    },
+    "emissao_produtos_sem_estoque_v2": {
+      "sql": "/* Produtos comprados recentemente na filial de destino, ignorando estoque (modo\n   \"sem estoque\" do robo). A media de quantidade vem das vendas reais da filial de\n   origem. Filtro de classe de imposto e tabela de preco entram como parametro. */\nSELECT\n    prod.Ordem AS Produto_Ordem,\n    prod.Ordem_Familia AS Familia_Ordem,\n    prod.Ordem_Classe AS Classe_Ordem,\n    prod.Ordem_Subclasse AS Subclasse_Ordem,\n    prod.Ordem_Classe_Imposto_Saida AS Classe_Imposto_Ordem,\n    prod.Codigo,\n    prod.Nome,\n    un.Nome AS Unidade,\n    prod.Tipo,\n    cor.Codigo AS Cor,\n    tam.Codigo AS Tamanho,\n    cla.Nome AS Classe_Imposto,\n    cla.Codigo AS Classe_Imposto_Codigo,\n    preco.Preco,\n    ISNULL(med.Media, 0) AS Media_Preco_Compra,\n    prod.Qtde_Fracionada_Casas_Decimais,\n    ISNULL(esto.Qtde_Estoque_Atual, 0) AS Qtde_Estoque_Atual\nFROM Prod_Serv AS prod\nINNER JOIN Fabricantes AS fab ON fab.Ordem = prod.Ordem_Fabricante\nINNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda\nINNER JOIN Prod_Serv_Precos AS preco ON preco.Ordem_Prod_Serv = prod.Ordem\nINNER JOIN Classe_Imposto AS cla ON cla.Ordem = prod.Ordem_Classe_Imposto_Saida\nINNER JOIN Tabelas_Preco AS tab ON tab.Ordem = preco.Ordem_Tabela_Preco\nINNER JOIN (\n    SELECT DISTINCT mp.Ordem_Prod_Serv, mp.Ordem_Cor, mp.Ordem_Tamanho\n    FROM Movimento_Prod_Serv AS mp\n    INNER JOIN Movimento AS m ON m.Ordem = mp.Ordem_Movimento\n    WHERE mp.Linha_Excluida = 0\n      AND m.Tipo_Operacao = 'COM'\n      AND m.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)\n      AND m.Data_Efetivado_Estoque >= DATEADD(DAY, -ISNULL(@DiasRecentes, 30), GETDATE())\n) AS comp_dest ON comp_dest.Ordem_Prod_Serv = prod.Ordem\n-- A variação é a registrada na compra, mesmo sem linha/saldo atual no estoque.\nLEFT JOIN Cores AS cor ON cor.Ordem = comp_dest.Ordem_Cor\nLEFT JOIN Tamanhos AS tam ON tam.Ordem = comp_dest.Ordem_Tamanho\nLEFT JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem\n    AND esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)\n    AND esto.Ordem_Cor = comp_dest.Ordem_Cor AND esto.Ordem_Tamanho = comp_dest.Ordem_Tamanho\nLEFT JOIN (\n    SELECT mp.Ordem_Prod_Serv, AVG(mp.Quantidade) AS Media\n    FROM Movimento_Prod_Serv AS mp\n    INNER JOIN Movimento AS m ON m.Ordem = mp.Ordem_Movimento\n    WHERE mp.Linha_Excluida = 0\n      AND m.Tipo_Operacao = 'VND'\n      AND m.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialOrigem)\n      AND m.Ordem_Operacao = (SELECT Ordem FROM Operacoes WHERE Codigo = @CodigoOperacaoVenda)\n    GROUP BY mp.Ordem_Prod_Serv\n) AS med ON med.Ordem_Prod_Serv = prod.Ordem\nWHERE tab.Ordem = @OrdemTabelaPreco\n  AND (@ClasseImposto IS NULL OR cla.Nome LIKE @ClasseImposto)\n  AND (@CodigoFamiliaExcluir IS NULL\n       OR prod.Ordem_Familia <> (SELECT Ordem FROM Familias WHERE Codigo = @CodigoFamiliaExcluir))\n  AND (ISNULL(@ComGrade, 0) = 0 OR (cor.Codigo IS NOT NULL AND tam.Codigo IS NOT NULL))\nGROUP BY prod.Ordem, prod.Ordem_Familia, prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Classe_Imposto_Saida, prod.Codigo, prod.Nome, prod.Tipo, cor.Codigo, tam.Codigo, esto.Qtde_Estoque_Atual, un.Nome, preco.Preco, cla.Codigo, cla.Nome,\n         prod.Qtde_Fracionada_Casas_Decimais, med.Media",
+      "sql_contagem": "SELECT COUNT(*) FROM (\n/* Produtos comprados recentemente na filial de destino, ignorando estoque (modo\n   \"sem estoque\" do robo). A media de quantidade vem das vendas reais da filial de\n   origem. Filtro de classe de imposto e tabela de preco entram como parametro. */\nSELECT\n    prod.Ordem AS Produto_Ordem,\n    prod.Ordem_Familia AS Familia_Ordem,\n    prod.Ordem_Classe AS Classe_Ordem,\n    prod.Ordem_Subclasse AS Subclasse_Ordem,\n    prod.Ordem_Classe_Imposto_Saida AS Classe_Imposto_Ordem,\n    prod.Codigo,\n    prod.Nome,\n    un.Nome AS Unidade,\n    prod.Tipo,\n    cor.Codigo AS Cor,\n    tam.Codigo AS Tamanho,\n    cla.Nome AS Classe_Imposto,\n    cla.Codigo AS Classe_Imposto_Codigo,\n    preco.Preco,\n    ISNULL(med.Media, 0) AS Media_Preco_Compra,\n    prod.Qtde_Fracionada_Casas_Decimais,\n    ISNULL(esto.Qtde_Estoque_Atual, 0) AS Qtde_Estoque_Atual\nFROM Prod_Serv AS prod\nINNER JOIN Fabricantes AS fab ON fab.Ordem = prod.Ordem_Fabricante\nINNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda\nINNER JOIN Prod_Serv_Precos AS preco ON preco.Ordem_Prod_Serv = prod.Ordem\nINNER JOIN Classe_Imposto AS cla ON cla.Ordem = prod.Ordem_Classe_Imposto_Saida\nINNER JOIN Tabelas_Preco AS tab ON tab.Ordem = preco.Ordem_Tabela_Preco\nINNER JOIN (\n    SELECT DISTINCT mp.Ordem_Prod_Serv, mp.Ordem_Cor, mp.Ordem_Tamanho\n    FROM Movimento_Prod_Serv AS mp\n    INNER JOIN Movimento AS m ON m.Ordem = mp.Ordem_Movimento\n    WHERE mp.Linha_Excluida = 0\n      AND m.Tipo_Operacao = 'COM'\n      AND m.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)\n      AND m.Data_Efetivado_Estoque >= DATEADD(DAY, -ISNULL(@DiasRecentes, 30), GETDATE())\n) AS comp_dest ON comp_dest.Ordem_Prod_Serv = prod.Ordem\n-- A variação é a registrada na compra, mesmo sem linha/saldo atual no estoque.\nLEFT JOIN Cores AS cor ON cor.Ordem = comp_dest.Ordem_Cor\nLEFT JOIN Tamanhos AS tam ON tam.Ordem = comp_dest.Ordem_Tamanho\nLEFT JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem\n    AND esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)\n    AND esto.Ordem_Cor = comp_dest.Ordem_Cor AND esto.Ordem_Tamanho = comp_dest.Ordem_Tamanho\nLEFT JOIN (\n    SELECT mp.Ordem_Prod_Serv, AVG(mp.Quantidade) AS Media\n    FROM Movimento_Prod_Serv AS mp\n    INNER JOIN Movimento AS m ON m.Ordem = mp.Ordem_Movimento\n    WHERE mp.Linha_Excluida = 0\n      AND m.Tipo_Operacao = 'VND'\n      AND m.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialOrigem)\n      AND m.Ordem_Operacao = (SELECT Ordem FROM Operacoes WHERE Codigo = @CodigoOperacaoVenda)\n    GROUP BY mp.Ordem_Prod_Serv\n) AS med ON med.Ordem_Prod_Serv = prod.Ordem\nWHERE tab.Ordem = @OrdemTabelaPreco\n  AND (@ClasseImposto IS NULL OR cla.Nome LIKE @ClasseImposto)\n  AND (@CodigoFamiliaExcluir IS NULL\n       OR prod.Ordem_Familia <> (SELECT Ordem FROM Familias WHERE Codigo = @CodigoFamiliaExcluir))\n  AND (ISNULL(@ComGrade, 0) = 0 OR (cor.Codigo IS NOT NULL AND tam.Codigo IS NOT NULL))\nGROUP BY prod.Ordem, prod.Ordem_Familia, prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Classe_Imposto_Saida, prod.Codigo, prod.Nome, prod.Tipo, cor.Codigo, tam.Codigo, esto.Qtde_Estoque_Atual, un.Nome, preco.Preco, cla.Codigo, cla.Nome,\n         prod.Qtde_Fracionada_Casas_Decimais, med.Media\n) AS consulta_contagem",
+      "parametros": [
+        {
+          "nome": "CodigoFilialOrigem",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        },
+        {
+          "nome": "CodigoFilialDestino",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "CodigoOperacaoVenda",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "OrdemTabelaPreco",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "DiasRecentes",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "ClasseImposto",
+          "tipo": "texto",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CodigoFamiliaExcluir",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "ComGrade",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "ordenacao": {
+        "colunas": {
+          "codigo": "prod.Codigo",
+          "nome": "prod.Nome"
+        },
+        "padrao": {
+          "coluna": "codigo",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "prod.Ordem",
+        "prod.Codigo",
+        "prod.Nome",
+        "prod.Tipo",
+        "un.Nome",
+        "cla.Codigo",
+        "cla.Nome",
+        "cor.Codigo",
+        "tam.Codigo",
+        "preco.Preco",
+        "prod.Qtde_Fracionada_Casas_Decimais",
+        "esto.Qtde_Estoque_Atual",
+        "prod.Ordem_Familia",
+        "prod.Ordem_Classe",
+        "prod.Ordem_Subclasse",
+        "prod.Ordem_Classe_Imposto_Saida",
+        "med.Media"
+      ],
+      "tamanho_pagina_padrao": 100,
+      "tamanho_pagina_max": 200,
+      "max_linhas": 10000,
+      "timeout_ms": 30000
+    },
+    "emissao_cadastros_produtos": {
+      "sql": "SELECT dados.Grupo, dados.Identidade, dados.Codigo, dados.Descricao, dados.Sigla FROM (\nSELECT 'familias' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Familias AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)\nUNION ALL\nSELECT 'classes' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Classes AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)\nUNION ALL\nSELECT 'subclasses' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Subclasses AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)\nUNION ALL\nSELECT 'classes_imposto' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Classe_Imposto AS c WHERE c.Tipo_Operacao = 'S' AND c.Inativo = 0 AND EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)\nUNION ALL\nSELECT 'unidades' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, RTRIM(c.Nome) AS Sigla FROM Unidades_Venda AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)\nUNION ALL\nSELECT 'tipos' AS Grupo, RTRIM(prod.Tipo) AS Identidade, RTRIM(prod.Tipo) AS Codigo, RTRIM(prod.Tipo) AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Prod_Serv AS prod WHERE prod.Tipo IS NOT NULL AND RTRIM(prod.Tipo) <> '' AND EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial) GROUP BY RTRIM(prod.Tipo)\n) AS dados",
+      "sql_contagem": "SELECT COUNT(*) FROM (\nSELECT dados.Grupo, dados.Identidade, dados.Codigo, dados.Descricao, dados.Sigla FROM (\nSELECT 'familias' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Familias AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)\nUNION ALL\nSELECT 'classes' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Classes AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)\nUNION ALL\nSELECT 'subclasses' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Subclasses AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)\nUNION ALL\nSELECT 'classes_imposto' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Classe_Imposto AS c WHERE c.Tipo_Operacao = 'S' AND c.Inativo = 0 AND EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)\nUNION ALL\nSELECT 'unidades' AS Grupo, CONVERT(varchar(100), c.Ordem) AS Identidade, CONVERT(varchar(100), c.Codigo) AS Codigo, c.Nome AS Descricao, RTRIM(c.Nome) AS Sigla FROM Unidades_Venda AS c WHERE EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial)\nUNION ALL\nSELECT 'tipos' AS Grupo, RTRIM(prod.Tipo) AS Identidade, RTRIM(prod.Tipo) AS Codigo, RTRIM(prod.Tipo) AS Descricao, CAST(NULL AS varchar(20)) AS Sigla FROM Prod_Serv AS prod WHERE prod.Tipo IS NOT NULL AND RTRIM(prod.Tipo) <> '' AND EXISTS (SELECT 1 FROM Filiais WHERE Codigo = @CodigoFilial) GROUP BY RTRIM(prod.Tipo)\n) AS dados\n) AS consulta_contagem",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        }
+      ],
+      "ordenacao": {
+        "colunas": {
+          "grupo": "dados.Grupo",
+          "codigo": "dados.Codigo"
+        },
+        "padrao": {
+          "coluna": "grupo",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "dados.Grupo",
+        "dados.Identidade"
+      ],
+      "tamanho_pagina_padrao": 200,
+      "tamanho_pagina_max": 200,
+      "max_linhas": 10000,
+      "timeout_ms": 30000
+    },
+    "emissao_notas_itens_mes": {
+      "sql": "/* CANDIDATO: classificação atual do cadastro. Confirmar campos/rateio no Shop9.\n   Não há evidência de snapshot histórico de família/classe/subclasse no schema.\n   O rateio do desconto/acréscimo global é proporcional ao Preco_Final dos itens. */\nSELECT fiscal.Chave_Acesso AS Nota_Chave, mp.Ordem AS Item_Ordem,\n    mov.Sequencia AS Seq_Destino, mov.Referencia_Interna AS Referencia_Interna,\n    fiscal.Data_Emissao, '65' AS Modelo, 100 AS Status, 0 AS Cancelada,\n    prod.Codigo, prod.Tipo, prod.Ordem_Familia AS Familia_Ordem,\n    prod.Ordem_Classe AS Classe_Ordem, prod.Ordem_Subclasse AS Subclasse_Ordem,\n    prod.Ordem_Classe_Imposto_Saida AS Classe_Imposto_Ordem,\n    cla.Codigo AS Classe_Imposto_Codigo, cla.Nome AS Classe_Imposto_Nome,\n    CAST(mp.Preco_Final AS decimal(19,6)) AS Valor_Item,\n    CAST(mov.Preco_Final_Somado AS decimal(19,6)) AS Total_Nota,\n    totais.Total_Itens\nFROM Movimento AS mov\nINNER JOIN (\n    SELECT Ordem_Movimento, Chave_Acesso, MAX(Data_Emissao) AS Data_Emissao\n    FROM Movimento_Documentos_Fiscais\n    WHERE SUBSTRING(Chave_Acesso, 21, 2) = '65'\n    GROUP BY Ordem_Movimento, Chave_Acesso\n    HAVING MAX(CASE WHEN Codigo_Status = 100 THEN 1 ELSE 0 END) = 1\n       AND MAX(CAST(ISNULL(Documento_Cancelado, 0) AS int)) = 0\n) AS fiscal ON fiscal.Ordem_Movimento = mov.Ordem\nINNER JOIN Movimento_Prod_Serv AS mp ON mp.Ordem_Movimento = mov.Ordem\nINNER JOIN Prod_Serv AS prod ON prod.Ordem = mp.Ordem_Prod_Serv\nLEFT JOIN Classe_Imposto AS cla ON cla.Ordem = prod.Ordem_Classe_Imposto_Saida\nINNER JOIN (\n    SELECT Ordem_Movimento, SUM(CAST(Preco_Final AS decimal(19,6))) AS Total_Itens\n    FROM Movimento_Prod_Serv WHERE Linha_Excluida = 0 GROUP BY Ordem_Movimento\n) AS totais ON totais.Ordem_Movimento = mov.Ordem\nWHERE mov.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)\n  AND mp.Linha_Excluida = 0\n  AND fiscal.Data_Emissao >= @inicio AND fiscal.Data_Emissao < DATEADD(DAY, 1, @fim)",
+      "sql_contagem": "SELECT COUNT(*) FROM (\n/* CANDIDATO: classificação atual do cadastro. Confirmar campos/rateio no Shop9.\n   Não há evidência de snapshot histórico de família/classe/subclasse no schema.\n   O rateio do desconto/acréscimo global é proporcional ao Preco_Final dos itens. */\nSELECT fiscal.Chave_Acesso AS Nota_Chave, mp.Ordem AS Item_Ordem,\n    mov.Sequencia AS Seq_Destino, mov.Referencia_Interna AS Referencia_Interna,\n    fiscal.Data_Emissao, '65' AS Modelo, 100 AS Status, 0 AS Cancelada,\n    prod.Codigo, prod.Tipo, prod.Ordem_Familia AS Familia_Ordem,\n    prod.Ordem_Classe AS Classe_Ordem, prod.Ordem_Subclasse AS Subclasse_Ordem,\n    prod.Ordem_Classe_Imposto_Saida AS Classe_Imposto_Ordem,\n    cla.Codigo AS Classe_Imposto_Codigo, cla.Nome AS Classe_Imposto_Nome,\n    CAST(mp.Preco_Final AS decimal(19,6)) AS Valor_Item,\n    CAST(mov.Preco_Final_Somado AS decimal(19,6)) AS Total_Nota,\n    totais.Total_Itens\nFROM Movimento AS mov\nINNER JOIN (\n    SELECT Ordem_Movimento, Chave_Acesso, MAX(Data_Emissao) AS Data_Emissao\n    FROM Movimento_Documentos_Fiscais\n    WHERE SUBSTRING(Chave_Acesso, 21, 2) = '65'\n    GROUP BY Ordem_Movimento, Chave_Acesso\n    HAVING MAX(CASE WHEN Codigo_Status = 100 THEN 1 ELSE 0 END) = 1\n       AND MAX(CAST(ISNULL(Documento_Cancelado, 0) AS int)) = 0\n) AS fiscal ON fiscal.Ordem_Movimento = mov.Ordem\nINNER JOIN Movimento_Prod_Serv AS mp ON mp.Ordem_Movimento = mov.Ordem\nINNER JOIN Prod_Serv AS prod ON prod.Ordem = mp.Ordem_Prod_Serv\nLEFT JOIN Classe_Imposto AS cla ON cla.Ordem = prod.Ordem_Classe_Imposto_Saida\nINNER JOIN (\n    SELECT Ordem_Movimento, SUM(CAST(Preco_Final AS decimal(19,6))) AS Total_Itens\n    FROM Movimento_Prod_Serv WHERE Linha_Excluida = 0 GROUP BY Ordem_Movimento\n) AS totais ON totais.Ordem_Movimento = mov.Ordem\nWHERE mov.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)\n  AND mp.Linha_Excluida = 0\n  AND fiscal.Data_Emissao >= @inicio AND fiscal.Data_Emissao < DATEADD(DAY, 1, @fim)\n) AS consulta_contagem",
+      "parametros": [
+        {
+          "nome": "CodigoFilialDestino",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        },
+        {
+          "nome": "inicio",
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        {
+          "nome": "fim",
+          "tipo": "data",
+          "obrigatorio": true
+        }
+      ],
+      "ordenacao": {
+        "colunas": {
+          "nota": "fiscal.Chave_Acesso",
+          "item": "mp.Ordem"
+        },
+        "padrao": {
+          "coluna": "nota",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "fiscal.Chave_Acesso",
+        "mp.Ordem"
+      ],
+      "tamanho_pagina_padrao": 200,
+      "tamanho_pagina_max": 200,
+      "max_linhas": 10000,
+      "timeout_ms": 30000,
+      "periodo_max_dias": 31
     }
   }
 }

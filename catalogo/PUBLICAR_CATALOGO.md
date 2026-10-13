@@ -3,6 +3,15 @@
 Use este guia no MacBook. O catálogo só é aceito pelo agente quando o JSON e a
 assinatura `.minisig` correspondem e a versão é maior que a já instalada.
 
+**Mudou o conteúdo, mude a versão.** Se o conteúdo muda mas `versao_catalogo`
+continua igual à já instalada, o agente ignora o catálogo novo sem aviso: só
+registra "Catalogo candidato ja e a versao N em uso" e segue com o antigo.
+Antes de assinar, aumente `versao_catalogo` no JSON.
+
+**Catálogo em rascunho.** `catalogo.candidato-configuracao.json` é rascunho não
+assinado. O agente só lê `catalogo.json`. Para publicar o rascunho, copie-o
+sobre `catalogo.json`, confira a versão e assine (passo 1).
+
 ## Arquivos usados
 
 Neste projeto, os arquivos são:
@@ -65,6 +74,11 @@ nada para repetir.
 O backend lê os dois arquivos na pasta configurada pela variável `CATALOGO_DIR`.
 Quando a variável não existe, a pasta padrão é `./dados_catalogo` dentro do
 diretório onde o backend roda na VPS.
+
+Neste projeto, o EasyPanel monta um bind: pasta do host
+`/root/catalogo_shop_plus` ↔ `/app/dados_catalogo` no container. O `scp` grava
+no **host**, então o destino é `root@HOST_DA_VPS:/root/catalogo_shop_plus/`.
+`/app/dados_catalogo` só existe dentro do container.
 
 No servidor, descubra a pasta configurada:
 
