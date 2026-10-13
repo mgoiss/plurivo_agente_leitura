@@ -19,7 +19,7 @@ INNER JOIN (
     WHERE SUBSTRING(Chave_Acesso, 21, 2) = '65'
     GROUP BY Ordem_Movimento, Chave_Acesso
     HAVING MAX(CASE WHEN Codigo_Status = 100 THEN 1 ELSE 0 END) = 1
-       AND MAX(ISNULL(Documento_Cancelado, 0)) = 0
+       AND MAX(CAST(ISNULL(Documento_Cancelado, 0) AS int)) = 0
 ) AS fiscal ON fiscal.Ordem_Movimento = mov.Ordem
 INNER JOIN Movimento_Prod_Serv AS mp ON mp.Ordem_Movimento = mov.Ordem
 INNER JOIN Prod_Serv AS prod ON prod.Ordem = mp.Ordem_Prod_Serv
