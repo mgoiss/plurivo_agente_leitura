@@ -63,4 +63,24 @@ public class CatalogoCandidatoConfiguracaoTestes
         Assert.Contains("MAX(CAST(ISNULL(Documento_Cancelado, 0) AS int)) = 0", itens.Sql);
         Assert.Contains("MAX(CAST(ISNULL(Documento_Cancelado, 0) AS int)) = 0", itens.SqlContagem);
     }
+
+    [Fact]
+    public void Vendas_por_dia_conta_vendas_sem_filtro_de_nfce_e_pagina_sem_coluna_repetida()
+    {
+        // Issue #83: histórico de vendas para distribuir a cota mensal. Não pode excluir venda já emitida.
+        var operacao = Catalogo.Analisar(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "fixtures", "catalogo.candidato-configuracao.json"))).Operacoes!["emissao_vendas_por_dia"];
+        Assert.Contains("COUNT(DISTINCT M.Sequencia) AS Qtd_Vendas", operacao.Sql);
+        Assert.Contains("AS Data_Venda", operacao.Sql);
+        Assert.DoesNotContain("Movimento_Documentos_Fiscais", operacao.Sql);
+        Assert.DoesNotContain("ORDER BY", operacao.Sql);
+        Assert.Contains("COUNT(*)", operacao.SqlContagem);
+        Assert.DoesNotContain("ORDER BY", operacao.SqlContagem!);
+        Assert.Equal(92, operacao.PeriodoMaxDias);
+        foreach (var chave in operacao.Ordenacao!.Colunas.Keys)
+        {
+            var comando = MontadorComando.Montar(operacao, new Dictionary<string, System.Text.Json.JsonElement>(), new PaginacaoResolvida { Pagina = 0, TamanhoPagina = 10, OrdenarPor = chave, Direcao = "asc", IncluirTotal = false });
+            var colunas = comando.CommandText[comando.CommandText.IndexOf("ORDER BY")..].Replace("ORDER BY ", "").Split("OFFSET")[0].Split(',').Select(c => c.Trim().Replace(" ASC", "").Replace(" DESC", "")).ToList();
+            Assert.Equal(colunas.Count, colunas.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        }
+    }
 }

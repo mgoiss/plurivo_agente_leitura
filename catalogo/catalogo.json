@@ -1,5 +1,5 @@
 {
-  "versao_catalogo": 27,
+  "versao_catalogo": 28,
   "operacoes": {
     "listar_produtos_estoque": {
       "sql": "SELECT prod.Ordem, prod.Codigo, prod.Nome, un.Codigo AS cod_un, un.Nome AS nome_un, clas.Codigo AS cod_classe, clas.Nome AS nome_classe, sub.Codigo AS cod_subclasse, sub.Nome AS nome_subclasse, esto.Qtde_Estoque_Atual FROM Prod_Serv AS prod INNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda INNER JOIN Classes AS clas ON clas.Ordem = prod.Ordem_Classe INNER JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse INNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem WHERE esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilial) AND (@Codigo IS NULL OR prod.Codigo = @Codigo) AND (@Nome IS NULL OR prod.Nome LIKE '%' + @Nome + '%') AND (@CodigoClasse IS NULL OR clas.Codigo = @CodigoClasse) AND (@CodigoSubclasse IS NULL OR sub.Codigo = @CodigoSubclasse) AND (@EstoqueMinimo IS NULL OR esto.Qtde_Estoque_Atual >= @EstoqueMinimo) AND (@EstoqueMaximo IS NULL OR esto.Qtde_Estoque_Atual <= @EstoqueMaximo) AND (@EstoqueMaiorQue IS NULL OR esto.Qtde_Estoque_Atual > @EstoqueMaiorQue) AND (@EstoqueMenorQue IS NULL OR esto.Qtde_Estoque_Atual < @EstoqueMenorQue)",
@@ -241,6 +241,45 @@
         "FM.Ordem_Exib",
         "FM.Ordem_Forma",
         "FM.Ordem_Item"
+      ],
+      "tamanho_pagina_padrao": 100,
+      "tamanho_pagina_max": 200,
+      "periodo_max_dias": 92,
+      "max_linhas": 10000,
+      "timeout_ms": 30000
+    },
+    "emissao_vendas_por_dia": {
+      "sql": "/* Contagem de vendas por dia, SOMENTE para distribuir a cota mensal de emissão (issue #83).\n   Mesma população de vendas de emissao_vendas_por_forma_pagamento (VND efetivada, operação que\n   movimenta dinheiro, filial, intervalo por Data_Efetivado_Estoque), mas SEM o filtro de NFC-e:\n   o histórico precisa incluir as vendas já emitidas, senão o peso dos dias some conforme se emite.\n   O EXISTS com Invalido = 0 mantém só vendas com forma de recebimento válida (venda anulada não\n   conta) sem multiplicar linhas por forma, e COUNT(DISTINCT) protege de qualquer duplicidade. */\nSELECT CAST(M.Data_Efetivado_Estoque AS date) AS Data_Venda,\n       COUNT(DISTINCT M.Sequencia) AS Qtd_Vendas\nFROM Movimento M\nINNER JOIN Operacoes O ON O.Ordem = M.Ordem_Operacao\nINNER JOIN Filiais FL ON FL.Ordem = M.Ordem_Filial\nWHERE O.Movimenta_Dinheiro = 1\n  AND M.Desefetivado_Estoque = 0\n  AND M.Efetivado_Estoque = 1\n  AND M.Tipo_Operacao = 'VND'\n  AND FL.Codigo = @CodigoFilial\n  AND M.Data_Efetivado_Estoque >= @inicio\n  AND M.Data_Efetivado_Estoque < DATEADD(DAY, 1, @fim)\n  AND EXISTS (\n      SELECT 1 FROM Financeiro_Formas_Recebimento_Pagamento_V2 F\n      WHERE F.Ordem_Movimento = M.Ordem AND ISNULL(F.Invalido, 0) = 0\n  )\nGROUP BY CAST(M.Data_Efetivado_Estoque AS date)",
+      "sql_contagem": "SELECT COUNT(*) FROM (\nSELECT CAST(M.Data_Efetivado_Estoque AS date) AS Data_Venda,\n       COUNT(DISTINCT M.Sequencia) AS Qtd_Vendas\nFROM Movimento M\nINNER JOIN Operacoes O ON O.Ordem = M.Ordem_Operacao\nINNER JOIN Filiais FL ON FL.Ordem = M.Ordem_Filial\nWHERE O.Movimenta_Dinheiro = 1\n  AND M.Desefetivado_Estoque = 0\n  AND M.Efetivado_Estoque = 1\n  AND M.Tipo_Operacao = 'VND'\n  AND FL.Codigo = @CodigoFilial\n  AND M.Data_Efetivado_Estoque >= @inicio\n  AND M.Data_Efetivado_Estoque < DATEADD(DAY, 1, @fim)\n  AND EXISTS (\n      SELECT 1 FROM Financeiro_Formas_Recebimento_Pagamento_V2 F\n      WHERE F.Ordem_Movimento = M.Ordem AND ISNULL(F.Invalido, 0) = 0\n  )\nGROUP BY CAST(M.Data_Efetivado_Estoque AS date)\n) AS Dias",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        },
+        {
+          "nome": "inicio",
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        {
+          "nome": "fim",
+          "tipo": "data",
+          "obrigatorio": true
+        }
+      ],
+      "ordenacao": {
+        "colunas": {
+          "data_venda": "CAST(M.Data_Efetivado_Estoque AS date)"
+        },
+        "padrao": {
+          "coluna": "data_venda",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "CAST(M.Data_Efetivado_Estoque AS date)"
       ],
       "tamanho_pagina_padrao": 100,
       "tamanho_pagina_max": 200,

@@ -248,6 +248,45 @@
       "max_linhas": 10000,
       "timeout_ms": 30000
     },
+    "emissao_vendas_por_dia": {
+      "sql": "/* Contagem de vendas por dia, SOMENTE para distribuir a cota mensal de emissão (issue #83).\n   Mesma população de vendas de emissao_vendas_por_forma_pagamento (VND efetivada, operação que\n   movimenta dinheiro, filial, intervalo por Data_Efetivado_Estoque), mas SEM o filtro de NFC-e:\n   o histórico precisa incluir as vendas já emitidas, senão o peso dos dias some conforme se emite.\n   O EXISTS com Invalido = 0 mantém só vendas com forma de recebimento válida (venda anulada não\n   conta) sem multiplicar linhas por forma, e COUNT(DISTINCT) protege de qualquer duplicidade. */\nSELECT CAST(M.Data_Efetivado_Estoque AS date) AS Data_Venda,\n       COUNT(DISTINCT M.Sequencia) AS Qtd_Vendas\nFROM Movimento M\nINNER JOIN Operacoes O ON O.Ordem = M.Ordem_Operacao\nINNER JOIN Filiais FL ON FL.Ordem = M.Ordem_Filial\nWHERE O.Movimenta_Dinheiro = 1\n  AND M.Desefetivado_Estoque = 0\n  AND M.Efetivado_Estoque = 1\n  AND M.Tipo_Operacao = 'VND'\n  AND FL.Codigo = @CodigoFilial\n  AND M.Data_Efetivado_Estoque >= @inicio\n  AND M.Data_Efetivado_Estoque < DATEADD(DAY, 1, @fim)\n  AND EXISTS (\n      SELECT 1 FROM Financeiro_Formas_Recebimento_Pagamento_V2 F\n      WHERE F.Ordem_Movimento = M.Ordem AND ISNULL(F.Invalido, 0) = 0\n  )\nGROUP BY CAST(M.Data_Efetivado_Estoque AS date)",
+      "sql_contagem": "SELECT COUNT(*) FROM (\nSELECT CAST(M.Data_Efetivado_Estoque AS date) AS Data_Venda,\n       COUNT(DISTINCT M.Sequencia) AS Qtd_Vendas\nFROM Movimento M\nINNER JOIN Operacoes O ON O.Ordem = M.Ordem_Operacao\nINNER JOIN Filiais FL ON FL.Ordem = M.Ordem_Filial\nWHERE O.Movimenta_Dinheiro = 1\n  AND M.Desefetivado_Estoque = 0\n  AND M.Efetivado_Estoque = 1\n  AND M.Tipo_Operacao = 'VND'\n  AND FL.Codigo = @CodigoFilial\n  AND M.Data_Efetivado_Estoque >= @inicio\n  AND M.Data_Efetivado_Estoque < DATEADD(DAY, 1, @fim)\n  AND EXISTS (\n      SELECT 1 FROM Financeiro_Formas_Recebimento_Pagamento_V2 F\n      WHERE F.Ordem_Movimento = M.Ordem AND ISNULL(F.Invalido, 0) = 0\n  )\nGROUP BY CAST(M.Data_Efetivado_Estoque AS date)\n) AS Dias",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        },
+        {
+          "nome": "inicio",
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        {
+          "nome": "fim",
+          "tipo": "data",
+          "obrigatorio": true
+        }
+      ],
+      "ordenacao": {
+        "colunas": {
+          "data_venda": "CAST(M.Data_Efetivado_Estoque AS date)"
+        },
+        "padrao": {
+          "coluna": "data_venda",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "CAST(M.Data_Efetivado_Estoque AS date)"
+      ],
+      "tamanho_pagina_padrao": 100,
+      "tamanho_pagina_max": 200,
+      "periodo_max_dias": 92,
+      "max_linhas": 10000,
+      "timeout_ms": 30000
+    },
     "emissao_produtos_disponiveis": {
       "sql": "/* Produtos que podem entrar nas notas de uma filial, com estoque positivo.\n   Reproduz os SQLs de produtos por empresa do robo (Hortifruti Santos, PagBank e\n   Ponto das Artes). O que variava por cliente virou parametro (nunca texto):\n   filtro de classe de imposto, tabela de preco, familia excluida e grade. */\nSELECT\n    prod.Codigo,\n    prod.Nome,\n    un.Nome AS Unidade,\n    prod.Tipo,\n    cla.Nome AS Classe_Imposto,\n    cor.Codigo AS Cor,\n    tam.Codigo AS Tamanho,\n    preco.Preco,\n    AVG(movProd.Quantidade) AS Media_Preco_Compra,\n    prod.Qtde_Fracionada_Casas_Decimais,\n    esto.Qtde_Estoque_Atual\nFROM Prod_Serv AS prod\nINNER JOIN Fabricantes AS fab ON fab.Ordem = prod.Ordem_Fabricante\nINNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda\nINNER JOIN Prod_Serv_Precos AS preco ON preco.Ordem_Prod_Serv = prod.Ordem\nINNER JOIN Classe_Imposto AS cla ON cla.Ordem = prod.Ordem_Classe_Imposto_Saida\nINNER JOIN Tabelas_Preco AS tab ON tab.Ordem = preco.Ordem_Tabela_Preco\nINNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem\n       AND esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialEstoque)\n-- Grade: sem cor/tamanho o LEFT JOIN devolve NULL e a linha segue igual.\nLEFT JOIN Cores AS cor ON cor.Ordem = esto.Ordem_Cor\nLEFT JOIN Tamanhos AS tam ON tam.Ordem = esto.Ordem_Tamanho\nINNER JOIN Movimento_Prod_Serv AS movProd ON movProd.Ordem_Prod_Serv = prod.Ordem\nINNER JOIN Movimento AS mov ON mov.Ordem = movProd.Ordem_Movimento\nWHERE movProd.Linha_Excluida = 0\n  AND mov.Data_Efetivado_Estoque >= DATEADD(DAY, -ISNULL(@DiasVendas, 90), GETDATE())\n  AND mov.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialOrigem)\n  AND mov.Tipo_Operacao = 'VND'\n  AND mov.Ordem_Operacao = (SELECT Ordem FROM Operacoes WHERE Codigo = @CodigoOperacaoVenda)\n  AND tab.Ordem = @OrdemTabelaPreco\n  AND esto.Qtde_Estoque_Atual > 0\n  AND (@ClasseImposto IS NULL OR cla.Nome LIKE @ClasseImposto)\n  AND (@CodigoFamiliaExcluir IS NULL\n       OR prod.Ordem_Familia <> (SELECT Ordem FROM Familias WHERE Codigo = @CodigoFamiliaExcluir))\n  AND (ISNULL(@ComGrade, 0) = 0 OR (cor.Codigo IS NOT NULL AND tam.Codigo IS NOT NULL))\nGROUP BY prod.Codigo, prod.Nome, prod.Tipo, un.Nome, cla.Codigo, cla.Nome, cor.Codigo, tam.Codigo,\n         preco.Preco, prod.Qtde_Fracionada_Casas_Decimais, esto.Qtde_Estoque_Atual",
       "sql_contagem": "/* Produtos que podem entrar nas notas de uma filial, com estoque positivo.\n   Reproduz os SQLs de produtos por empresa do robo (Hortifruti Santos, PagBank e\n   Ponto das Artes). O que variava por cliente virou parametro (nunca texto):\n   filtro de classe de imposto, tabela de preco, familia excluida e grade. */\nSELECT COUNT(*) FROM (\nSELECT\n    prod.Codigo,\n    prod.Nome,\n    un.Nome AS Unidade,\n    prod.Tipo,\n    cla.Nome AS Classe_Imposto,\n    cor.Codigo AS Cor,\n    tam.Codigo AS Tamanho,\n    preco.Preco,\n    AVG(movProd.Quantidade) AS Media_Preco_Compra,\n    prod.Qtde_Fracionada_Casas_Decimais,\n    esto.Qtde_Estoque_Atual\nFROM Prod_Serv AS prod\nINNER JOIN Fabricantes AS fab ON fab.Ordem = prod.Ordem_Fabricante\nINNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda\nINNER JOIN Prod_Serv_Precos AS preco ON preco.Ordem_Prod_Serv = prod.Ordem\nINNER JOIN Classe_Imposto AS cla ON cla.Ordem = prod.Ordem_Classe_Imposto_Saida\nINNER JOIN Tabelas_Preco AS tab ON tab.Ordem = preco.Ordem_Tabela_Preco\nINNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem\n       AND esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialEstoque)\n-- Grade: sem cor/tamanho o LEFT JOIN devolve NULL e a linha segue igual.\nLEFT JOIN Cores AS cor ON cor.Ordem = esto.Ordem_Cor\nLEFT JOIN Tamanhos AS tam ON tam.Ordem = esto.Ordem_Tamanho\nINNER JOIN Movimento_Prod_Serv AS movProd ON movProd.Ordem_Prod_Serv = prod.Ordem\nINNER JOIN Movimento AS mov ON mov.Ordem = movProd.Ordem_Movimento\nWHERE movProd.Linha_Excluida = 0\n  AND mov.Data_Efetivado_Estoque >= DATEADD(DAY, -ISNULL(@DiasVendas, 90), GETDATE())\n  AND mov.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialOrigem)\n  AND mov.Tipo_Operacao = 'VND'\n  AND mov.Ordem_Operacao = (SELECT Ordem FROM Operacoes WHERE Codigo = @CodigoOperacaoVenda)\n  AND tab.Ordem = @OrdemTabelaPreco\n  AND esto.Qtde_Estoque_Atual > 0\n  AND (@ClasseImposto IS NULL OR cla.Nome LIKE @ClasseImposto)\n  AND (@CodigoFamiliaExcluir IS NULL\n       OR prod.Ordem_Familia <> (SELECT Ordem FROM Familias WHERE Codigo = @CodigoFamiliaExcluir))\n  AND (ISNULL(@ComGrade, 0) = 0 OR (cor.Codigo IS NOT NULL AND tam.Codigo IS NOT NULL))\nGROUP BY prod.Codigo, prod.Nome, prod.Tipo, un.Nome, cla.Codigo, cla.Nome, cor.Codigo, tam.Codigo,\n         preco.Preco, prod.Qtde_Fracionada_Casas_Decimais, esto.Qtde_Estoque_Atual\n) AS produtos",
