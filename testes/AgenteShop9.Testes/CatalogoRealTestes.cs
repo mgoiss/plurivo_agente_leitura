@@ -10,7 +10,7 @@ public class CatalogoRealTestes
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(24, cat.VersaoCatalogo);
+        Assert.Equal(28, cat.VersaoCatalogo);
         Assert.NotNull(cat.Operacoes);
         Assert.True(cat.Operacoes!.TryGetValue("listar_produtos_estoque", out var op));
 
@@ -72,8 +72,8 @@ public class CatalogoRealTestes
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(24, cat.VersaoCatalogo);
-        Assert.Equal(7, cat.Operacoes!.Count);
+        Assert.Equal(28, cat.VersaoCatalogo);
+        Assert.Equal(12, cat.Operacoes!.Count);
 
         foreach (var (_, op) in cat.Operacoes)
         {
