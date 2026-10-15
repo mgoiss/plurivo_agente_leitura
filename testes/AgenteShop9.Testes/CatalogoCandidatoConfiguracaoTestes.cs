@@ -40,12 +40,13 @@ public class CatalogoCandidatoConfiguracaoTestes
     }
 
     [Fact]
-    public void Candidato_tem_versao_maior_que_a_do_catalogo_em_uso()
+    public void Candidato_tem_as_mesmas_operacoes_do_catalogo_em_uso()
     {
         var candidato = Catalogo.Analisar(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "fixtures", "catalogo.candidato-configuracao.json")));
         var emUso = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
         Assert.True(candidato.VersaoCatalogo >= 27);
-        Assert.True(candidato.VersaoCatalogo > emUso.VersaoCatalogo);
+        // Depois de publicar, o catalogo em uso alcanca (ou passa) o candidato: o que importa e as operacoes serem as mesmas.
+        Assert.Equal(emUso.Operacoes!.Keys.OrderBy(n => n), candidato.Operacoes!.Keys.OrderBy(n => n));
     }
 
     [Fact]
