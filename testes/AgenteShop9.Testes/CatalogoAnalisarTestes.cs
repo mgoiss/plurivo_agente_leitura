@@ -49,6 +49,21 @@ public class CatalogoAnalisarTestes
         Assert.Null(cat.Operacoes!["x"].PeriodoMaxDias);
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1400001)]
+    public void Limite_textual_fora_do_intervalo_recusa_catalogo(int limite)
+    {
+        var json = Encoding.UTF8.GetBytes($$"""
+            { "versao_catalogo": 99, "operacoes": {
+                "catalogo_foto": { "sql": "SELECT Foto FROM Prod_Serv_Fotos",
+                    "parametros": [], "max_caracteres_texto": {{limite}} }
+            } }
+            """);
+        var erro = Assert.Throws<CatalogoInvalidoException>(() => Catalogo.Analisar(json));
+        Assert.Contains("max_caracteres_texto", erro.Message);
+    }
+
     // ---- paginacao (issue #24) -----------------------------------------
 
     private static byte[] ComOrdenacao(string ordenacao, string extra = "") => Encoding.UTF8.GetBytes($$"""

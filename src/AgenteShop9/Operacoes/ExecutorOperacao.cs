@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Data;
+using System.Text;
 using System.Text.Json;
 using AgenteShop9.Catalogos;
 using AgenteShop9.Configuracao;
@@ -29,6 +31,8 @@ public sealed class ExecutorOperacao(
     ConfiguracaoAgente config,
     GestorCatalogo gestorCatalogo) : IExecutorOperacao
 {
+    private sealed class ResultadoGrandeException : Exception;
+
     public async Task<MensagemResultado> ExecutarAsync(JsonElement pedido, CancellationToken ct)
     {
         var idRequisicao = LerTexto(pedido, "id_requisicao");
@@ -76,6 +80,11 @@ public sealed class ExecutorOperacao(
             log.LogWarning("Operacao {Op} estourou o timeout.", nomeOperacao);
             return MensagemResultado.Erro(idRequisicao, "timeout", "a consulta demorou demais e foi cancelada.");
         }
+        catch (ResultadoGrandeException)
+        {
+            return MensagemResultado.Erro(idRequisicao, "resultado_grande",
+                "a resposta excedeu o limite de texto da operacao.");
+        }
         catch (SqlException ex) when (ex.Number is 4060 or 208)
         {
             // 4060: banco indicado nao abre. 208: a conexao abriu, mas nao
@@ -104,7 +113,7 @@ public sealed class ExecutorOperacao(
         SqlConnection conexao, Stopwatch relogio, CancellationToken ct)
     {
         await using var cmd = MontadorComando.Montar(op, recebidos, conexao: conexao);
-        await using var leitor = await cmd.ExecuteReaderAsync(ct);
+        await using var leitor = await cmd.ExecuteReaderAsync(CommandBehavior.SequentialAccess, ct);
 
         var linhas = new List<IReadOnlyDictionary<string, object?>>();
         while (await leitor.ReadAsync(ct))
@@ -113,7 +122,7 @@ public sealed class ExecutorOperacao(
                 return MensagemResultado.Erro(idRequisicao, "resultado_grande",
                     $"a consulta passou de {op.MaxLinhas} linhas; refine os filtros.");
 
-            linhas.Add(await LerLinha(leitor, ct));
+            linhas.Add(await LerLinha(leitor, op.MaxCaracteresTexto, ct));
         }
 
         return new MensagemResultado
@@ -135,9 +144,9 @@ public sealed class ExecutorOperacao(
             // Buscamos tamanho_pagina + 1: a linha extra so serve para saber que
             // ha proxima pagina — ela nao volta na resposta. O leitor fecha aqui,
             // antes da contagem (sem MARS, a conexao so aguenta um por vez).
-            await using var leitor = await cmd.ExecuteReaderAsync(ct);
+            await using var leitor = await cmd.ExecuteReaderAsync(CommandBehavior.SequentialAccess, ct);
             while (linhas.Count < pag.Buscar && await leitor.ReadAsync(ct))
-                linhas.Add(await LerLinha(leitor, ct));
+                linhas.Add(await LerLinha(leitor, op.MaxCaracteresTexto, ct));
         }
 
         var temProxima = linhas.Count > pag.TamanhoPagina;
@@ -173,11 +182,34 @@ public sealed class ExecutorOperacao(
         };
     }
 
-    private static async Task<Dictionary<string, object?>> LerLinha(SqlDataReader leitor, CancellationToken ct)
+    private static async Task<Dictionary<string, object?>> LerLinha(
+        SqlDataReader leitor, int maxCaracteresTexto, CancellationToken ct)
     {
         var linha = new Dictionary<string, object?>(leitor.FieldCount);
         for (var i = 0; i < leitor.FieldCount; i++)
-            linha[leitor.GetName(i)] = await leitor.IsDBNullAsync(i, ct) ? null : leitor.GetValue(i);
+        {
+            if (await leitor.IsDBNullAsync(i, ct))
+            {
+                linha[leitor.GetName(i)] = null;
+                continue;
+            }
+            if (maxCaracteresTexto > 0 && leitor.GetFieldType(i) == typeof(string))
+            {
+                using var fonte = leitor.GetTextReader(i);
+                var texto = new StringBuilder();
+                var buffer = new char[8192];
+                int lidos;
+                while ((lidos = await fonte.ReadAsync(buffer.AsMemory(), ct)) > 0)
+                {
+                    if (texto.Length + lidos > maxCaracteresTexto)
+                        throw new ResultadoGrandeException();
+                    texto.Append(buffer, 0, lidos);
+                }
+                linha[leitor.GetName(i)] = texto.ToString();
+            }
+            else
+                linha[leitor.GetName(i)] = leitor.GetValue(i);
+        }
         return linha;
     }
 

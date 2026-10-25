@@ -44,6 +44,9 @@ public sealed record Operacao
     [JsonPropertyName("max_linhas")] public int MaxLinhas { get; init; } = 10_000;
     [JsonPropertyName("timeout_ms")] public int TimeoutMs { get; init; } = 30_000;
 
+    /// <summary>Limite por coluna textual lida em fluxo. Zero preserva o legado.</summary>
+    [JsonPropertyName("max_caracteres_texto")] public int MaxCaracteresTexto { get; init; }
+
     /// <summary>
     /// Janela maxima, em dias, entre os parametros `inicio` e `fim`. So faz
     /// sentido em operacao com faixa de datas. Ausente = sem limite.
@@ -120,6 +123,8 @@ public sealed record Catalogo
                 throw new CatalogoInvalidoException($"operacao '{nome}' com 'max_linhas' invalido.");
             if (op.TimeoutMs < 1)
                 throw new CatalogoInvalidoException($"operacao '{nome}' com 'timeout_ms' invalido.");
+            if (op.MaxCaracteresTexto < 0 || op.MaxCaracteresTexto > 1_400_000)
+                throw new CatalogoInvalidoException($"operacao '{nome}' com 'max_caracteres_texto' invalido.");
             if (op.PeriodoMaxDias is < 1)
                 throw new CatalogoInvalidoException(
                     $"operacao '{nome}' com 'periodo_max_dias' invalido (>= 1).");
