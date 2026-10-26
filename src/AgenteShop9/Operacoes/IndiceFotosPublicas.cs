@@ -132,7 +132,7 @@ public sealed class IndiceFotosTempoException(
 public sealed class AcumuladorIndiceFotosPublicas
 {
     public const int MaxLinhas = 50_000;
-    public const long MaxCaracteres = 64L * 1024 * 1024;
+    public const long MaxCaracteres = 128L * 1024 * 1024;
     private int _linhas;
     private int _produtoAnterior;
     private int _fotosDoProduto;

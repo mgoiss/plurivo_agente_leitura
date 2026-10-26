@@ -32,7 +32,10 @@ public sealed class ExecutorOperacao(
     GestorCatalogo gestorCatalogo) : IExecutorOperacao
 {
     private sealed class ResultadoGrandeException : Exception;
-    private static readonly TimeSpan TempoMaximoIndiceFotos = TimeSpan.FromSeconds(7);
+    // Homologacao #109: 1.252 fotos elegiveis exigiram 105 MiB e ultrapassaram
+    // os limites iniciais. O prazo HTTP ainda e de 10 s; preparar o indice
+    // pode concluir depois dele, para medir as consultas com cache aquecido.
+    private static readonly TimeSpan TempoMaximoIndiceFotos = TimeSpan.FromSeconds(12);
     private readonly SemaphoreSlim _travaIndiceFotos = new(1, 1);
     private readonly Dictionary<string, (IReadOnlyDictionary<int, int> Fotos, DateTimeOffset Expira)>
         _indicesFotos = new();
