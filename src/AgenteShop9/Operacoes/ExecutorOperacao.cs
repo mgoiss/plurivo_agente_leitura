@@ -32,6 +32,7 @@ public sealed class ExecutorOperacao(
     GestorCatalogo gestorCatalogo) : IExecutorOperacao
 {
     private sealed class ResultadoGrandeException : Exception;
+    private static readonly TimeSpan TempoMaximoIndiceFotos = TimeSpan.FromSeconds(7);
     private readonly SemaphoreSlim _travaIndiceFotos = new(1, 1);
     private readonly Dictionary<string, (IReadOnlyDictionary<int, int> Fotos, DateTimeOffset Expira)>
         _indicesFotos = new();
@@ -93,6 +94,12 @@ public sealed class ExecutorOperacao(
             log.LogWarning("Operacao {Op} estourou o timeout SQL na etapa {Etapa} apos {DuracaoMs} ms (codigo {CodigoSql}).",
                 nomeOperacao, etapa, relogio.ElapsedMilliseconds, ex.Number);
             return MensagemResultado.Erro(idRequisicao, "timeout", "a consulta demorou demais e foi cancelada.");
+        }
+        catch (IndiceFotosTempoException ex)
+        {
+            log.LogWarning("Operacao {Op} excedeu o tempo do indice de fotos apos {DuracaoMs} ms: {Linhas} linhas, {Caracteres} caracteres.",
+                nomeOperacao, relogio.ElapsedMilliseconds, ex.LinhasLidas, ex.CaracteresLidos);
+            return MensagemResultado.Erro(idRequisicao, "timeout", "a preparacao de fotos excedeu o tempo permitido.");
         }
         catch (TimeoutException)
         {
@@ -167,8 +174,9 @@ public sealed class ExecutorOperacao(
             {
                 while (await leitor.ReadAsync(ct))
                 {
-                    if (relogioIndice.Elapsed > TimeSpan.FromSeconds(5))
-                        throw new TimeoutException();
+                    if (relogioIndice.Elapsed > TempoMaximoIndiceFotos)
+                        throw new IndiceFotosTempoException(
+                            acumulador.LinhasLidas, acumulador.CaracteresLidos);
                     var produtoOrdem = leitor.GetInt32(0);
                     var imagemOrdem = leitor.GetInt32(1);
                     var tamanho = Convert.ToInt64(leitor.GetValue(2));
@@ -178,8 +186,9 @@ public sealed class ExecutorOperacao(
                                       texto, IndiceFotosPublicas.FotoValida);
                 }
             }
-            if (relogioIndice.Elapsed > TimeSpan.FromSeconds(5))
-                throw new TimeoutException();
+            if (relogioIndice.Elapsed > TempoMaximoIndiceFotos)
+                throw new IndiceFotosTempoException(
+                    acumulador.LinhasLidas, acumulador.CaracteresLidos);
             _indicesFotos[chaveEscopo] = (acumulador.Fotos, DateTimeOffset.UtcNow.AddSeconds(300));
             if (_indicesFotos.Count > 16)
             {

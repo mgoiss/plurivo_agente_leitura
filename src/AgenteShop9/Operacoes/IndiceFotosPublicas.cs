@@ -121,6 +121,13 @@ public sealed class IndiceFotosCapacidadeException(
     public long CaracteresLidos { get; } = caracteresLidos;
 }
 
+public sealed class IndiceFotosTempoException(
+    int linhasLidas, long caracteresLidos) : TimeoutException
+{
+    public int LinhasLidas { get; } = linhasLidas;
+    public long CaracteresLidos { get; } = caracteresLidos;
+}
+
 /// <summary>Consome somente as linhas da consulta ja limitada ao escopo da vitrine.</summary>
 public sealed class AcumuladorIndiceFotosPublicas
 {
@@ -132,6 +139,8 @@ public sealed class AcumuladorIndiceFotosPublicas
     private long _caracteres;
 
     public Dictionary<int, int> Fotos { get; } = new();
+    public int LinhasLidas => _linhas;
+    public long CaracteresLidos => _caracteres;
 
     public bool PrecisaLerFoto(int produtoOrdem) => !Fotos.ContainsKey(produtoOrdem);
 
