@@ -203,11 +203,13 @@ public class CatalogoCandidatoPublicoTestes
         Assert.Equal(81, acumuladorA.Fotos[136]);
         Assert.DoesNotContain(6998, acumuladorA.Fotos.Keys);
         var acumuladorB = new AcumuladorIndiceFotosPublicas();
-        Assert.Throws<IndiceFotosCapacidadeException>(() =>
+        var excesso = Assert.Throws<IndiceFotosCapacidadeException>(() =>
         {
             foreach (var linha in fonte.Where(x => x.Tabela == 9))
                 acumuladorB.Incluir(linha.Produto, linha.Foto, linha.Conteudo.Length,
                     linha.Conteudo, texto => texto == "PNG valido");
         });
+        Assert.Equal("fotos_por_produto", excesso.Motivo);
+        Assert.Equal(9, excesso.LinhasLidas);
     }
 }

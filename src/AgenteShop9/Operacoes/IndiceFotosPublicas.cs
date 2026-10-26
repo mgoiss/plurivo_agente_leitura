@@ -113,7 +113,13 @@ public static class IndiceFotosPublicas
     }
 }
 
-public sealed class IndiceFotosCapacidadeException : Exception;
+public sealed class IndiceFotosCapacidadeException(
+    string motivo, int linhasLidas, long caracteresLidos) : Exception
+{
+    public string Motivo { get; } = motivo;
+    public int LinhasLidas { get; } = linhasLidas;
+    public long CaracteresLidos { get; } = caracteresLidos;
+}
 
 /// <summary>Consome somente as linhas da consulta ja limitada ao escopo da vitrine.</summary>
 public sealed class AcumuladorIndiceFotosPublicas
@@ -133,17 +139,19 @@ public sealed class AcumuladorIndiceFotosPublicas
                         string? fotoBase64, Func<string?, bool> validar)
     {
         if (++_linhas > MaxLinhas)
-            throw new IndiceFotosCapacidadeException();
+            throw new IndiceFotosCapacidadeException("linhas", _linhas, _caracteres);
         if (produtoOrdem != _produtoAnterior)
         {
             _produtoAnterior = produtoOrdem;
             _fotosDoProduto = 0;
         }
         if (++_fotosDoProduto > 8)
-            throw new IndiceFotosCapacidadeException();
-        if (caracteres < 1 || caracteres > IndiceFotosPublicas.MaxCaracteres
-            || (_caracteres += caracteres) > MaxCaracteres)
-            throw new IndiceFotosCapacidadeException();
+            throw new IndiceFotosCapacidadeException("fotos_por_produto", _linhas, _caracteres);
+        if (caracteres < 1 || caracteres > IndiceFotosPublicas.MaxCaracteres)
+            throw new IndiceFotosCapacidadeException("tamanho_foto", _linhas, _caracteres);
+        _caracteres += caracteres;
+        if (_caracteres > MaxCaracteres)
+            throw new IndiceFotosCapacidadeException("volume_texto", _linhas, _caracteres);
         IndiceFotosPublicas.TentarIncluir(
             Fotos, produtoOrdem, imagemOrdem, fotoBase64, validar);
     }

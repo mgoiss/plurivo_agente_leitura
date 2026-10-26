@@ -66,16 +66,20 @@ public sealed class ExecutorOperacao(
         }
 
         var relogio = Stopwatch.StartNew();
+        var etapa = "conexao";
         try
         {
             await using var conexao = new SqlConnection(config.ConexaoSql);
             await conexao.OpenAsync(ct);
             if (op.UsaFotosValidadas)
             {
+                etapa = "indice_fotos";
                 var fotos = await ObterIndiceFotos(catalogo, recebidos, conexao, ct);
+                etapa = "tabela_fotos";
                 await PrepararTabelaFotos(conexao, fotos, ct);
             }
 
+            etapa = "consulta";
             return paginacao is null
                 ? await ExecutarSemPaginacao(idRequisicao, op, recebidos, conexao, relogio, ct)
                 : await ExecutarPaginado(idRequisicao, op, recebidos, paginacao, conexao, relogio, ct);
@@ -86,20 +90,28 @@ public sealed class ExecutorOperacao(
         }
         catch (SqlException ex) when (ex.Number is -2 or 258)
         {
-            log.LogWarning("Operacao {Op} estourou o timeout.", nomeOperacao);
+            log.LogWarning("Operacao {Op} estourou o timeout SQL na etapa {Etapa} apos {DuracaoMs} ms (codigo {CodigoSql}).",
+                nomeOperacao, etapa, relogio.ElapsedMilliseconds, ex.Number);
             return MensagemResultado.Erro(idRequisicao, "timeout", "a consulta demorou demais e foi cancelada.");
         }
         catch (TimeoutException)
         {
+            log.LogWarning("Operacao {Op} estourou o tempo de preparacao na etapa {Etapa} apos {DuracaoMs} ms.",
+                nomeOperacao, etapa, relogio.ElapsedMilliseconds);
             return MensagemResultado.Erro(idRequisicao, "timeout", "a preparacao de fotos excedeu o tempo permitido.");
         }
         catch (ResultadoGrandeException)
         {
+            log.LogWarning("Operacao {Op} excedeu o limite de resposta na etapa {Etapa} apos {DuracaoMs} ms.",
+                nomeOperacao, etapa, relogio.ElapsedMilliseconds);
             return MensagemResultado.Erro(idRequisicao, "resultado_grande",
                 "a resposta excedeu o limite de texto da operacao.");
         }
-        catch (IndiceFotosCapacidadeException)
+        catch (IndiceFotosCapacidadeException ex)
         {
+            log.LogWarning("Operacao {Op} excedeu o indice de fotos na etapa {Etapa}: {Motivo}, {Linhas} linhas, {Caracteres} caracteres, {DuracaoMs} ms.",
+                nomeOperacao, etapa, ex.Motivo, ex.LinhasLidas, ex.CaracteresLidos,
+                relogio.ElapsedMilliseconds);
             return MensagemResultado.Erro(idRequisicao, "resultado_grande",
                 "o indice de fotos desse catalogo excedeu o limite permitido.");
         }
