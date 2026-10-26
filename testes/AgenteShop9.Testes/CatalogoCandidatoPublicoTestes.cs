@@ -14,7 +14,7 @@ public class CatalogoCandidatoPublicoTestes
     {
         var candidato = Candidato();
         var emUso = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
-        Assert.Equal(29, candidato.VersaoCatalogo);
+        Assert.Equal(30, candidato.VersaoCatalogo);
         Assert.All(emUso.Operacoes!.Keys, nome => Assert.Contains(nome, candidato.Operacoes!.Keys));
         var foto = candidato.Operacoes!["catalogo_foto"];
         Assert.Equal(1, foto.MaxLinhas);
@@ -88,5 +88,126 @@ public class CatalogoCandidatoPublicoTestes
         Assert.Contains("prod.Web_Obs1", produto.Sql);
         Assert.Contains("prod.Web_Obs2", produto.Sql);
         Assert.Equal(8000, produto.MaxCaracteresTexto);
+    }
+
+    [Fact]
+    public void Navegacao_usa_operacoes_fixas_e_vendas_distintas_sem_exigir_nota_fiscal()
+    {
+        var operacoes = Candidato().Operacoes!;
+        foreach (var nome in new[] { "catalogo_inicio", "catalogo_classes", "catalogo_subclasses",
+            "catalogo_familias", "catalogo_produtos_ids", "catalogo_produtos_ids_sem_vendas",
+            "catalogo_cartoes",
+            "catalogo_relacionados" })
+        {
+            var operacao = operacoes[nome];
+            Assert.Equal(2000, operacao.TimeoutMs);
+            Assert.DoesNotContain("OPENJSON", operacao.Sql);
+            Assert.Contains("prod.Tipo IN ('N', 'G')", operacao.Sql);
+            Assert.Contains("prod.Bloqueado_Venda = 0", operacao.Sql);
+            Assert.True(operacao.UsaFotosValidadas);
+            Assert.Contains("#FotosValidas", operacao.Sql);
+            Assert.DoesNotContain("SELECT *", operacao.Sql);
+        }
+        var inicio = operacoes["catalogo_inicio"];
+        Assert.Contains("TOP (7)", inicio.Sql);
+        Assert.Contains("SUM(CAST(item.Quantidade AS decimal(19,4)))", inicio.Sql);
+        Assert.Contains("mov.Efetivado_Estoque = 1", inicio.Sql);
+        Assert.Contains("Data_Efetivado_Estoque >= @Inicio", inicio.Sql);
+        Assert.Contains("@Inicio >= DATEADD(DAY, -59", inicio.Sql);
+        Assert.Contains("Data_Efetivado_Estoque <= GETDATE()", inicio.Sql);
+        Assert.DoesNotContain("Movimento_Documentos_Fiscais", inicio.Sql);
+        var relacionados = operacoes["catalogo_relacionados"];
+        Assert.Contains("COUNT(DISTINCT item.Ordem_Movimento)", relacionados.Sql);
+        Assert.Contains("item.Linha_Excluida = 0", relacionados.Sql);
+        Assert.Contains("mov.Desefetivado_Estoque = 0", relacionados.Sql);
+        Assert.Contains("mov.Efetivado_Estoque = 1", relacionados.Sql);
+        Assert.Contains("Origem_Valida", relacionados.Sql);
+        var identidades = operacoes["catalogo_produtos_ids"];
+        Assert.Contains("mov.Efetivado_Estoque = 1", identidades.Sql);
+        Assert.Contains("COUNT(*)", identidades.SqlContagem);
+        Assert.Contains("preco_asc", identidades.Ordenacao!.Colunas.Keys);
+        Assert.DoesNotContain("Movimento AS mov", operacoes["catalogo_produtos_ids_sem_vendas"].Sql);
+        var comando = MontadorComando.Montar(identidades, new Dictionary<string, JsonElement>(),
+            new PaginacaoResolvida { Pagina = 0, TamanhoPagina = 24,
+                OrdenarPor = "preco_desc", Direcao = "asc", IncluirTotal = false });
+        Assert.Contains("ORDER BY Preco_Desc ASC, prod.Ordem OFFSET", comando.CommandText);
+        var cartoes = operacoes["catalogo_cartoes"];
+        Assert.Equal(48, cartoes.Parametros.Count(p => p.Nome.StartsWith("Produto_")));
+        Assert.Equal(8, cartoes.Parametros.Count(p => p.Nome.StartsWith("Tabela_")));
+        Assert.Contains("prod.Ordem IN (@Produto_01", cartoes.Sql);
+        var estoque = operacoes["catalogo_estoque_produtos"];
+        Assert.Equal(2000, estoque.TimeoutMs);
+        Assert.DoesNotContain("OPENJSON", estoque.Sql);
+        Assert.Equal(48, estoque.Parametros.Count(p => p.Nome.StartsWith("Produto_")));
+        Assert.Contains("esto.Ordem_Edicao = 0", estoque.Sql);
+        Assert.True(operacoes["catalogo_indice_fotos"].UsoInterno);
+        Assert.Equal(50000, operacoes["catalogo_indice_fotos"].MaxLinhas);
+        Assert.Equal(5000, operacoes["catalogo_indice_fotos"].TimeoutMs);
+    }
+
+    [Fact]
+    public void Indice_escolhe_segunda_foto_quando_primeira_e_invalida()
+    {
+        const string fotoValida = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jUygAAAAASUVORK5CYII=";
+        var fotos = new (int ProdutoOrdem, int ImagemOrdem, string? FotoBase64)[]
+        {
+            (136, 80, "%%%"),
+            (136, 81, fotoValida),
+            (6998, 26, fotoValida),
+        };
+        var selecionadas = IndiceFotosPublicas.SelecionarPrimeirasValidas(
+            fotos, texto => texto == fotoValida);
+        Assert.Equal(81, selecionadas[136]);
+        Assert.Equal(26, selecionadas[6998]);
+        if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
+        {
+            Assert.False(IndiceFotosPublicas.FotoValida("%%%"));
+            Assert.True(IndiceFotosPublicas.FotoValida(fotoValida));
+        }
+    }
+
+    [Fact]
+    public void Preparo_de_fotos_isola_tabelas_antes_de_aplicar_limite_por_produto()
+    {
+        var operacao = Candidato().Operacoes!["catalogo_indice_fotos"];
+        Assert.Contains("filial.Codigo = @CodigoFilial", operacao.Sql);
+        Assert.Contains("preco.Ordem_Tabela_Preco IN (@Tabela_01", operacao.Sql);
+        Assert.Contains("preco.Inativo = 0 AND preco.Preco > 0", operacao.Sql);
+        using var jsonA = JsonDocument.Parse("""{"CodigoFilial":2,"Tabela_01":4}""");
+        using var jsonB = JsonDocument.Parse("""{"CodigoFilial":2,"Tabela_01":9}""");
+        var recebidoA = jsonA.RootElement.EnumerateObject()
+            .ToDictionary(p => p.Name, p => p.Value.Clone());
+        var recebidoB = jsonB.RootElement.EnumerateObject()
+            .ToDictionary(p => p.Name, p => p.Value.Clone());
+        var parametrosA = IndiceFotosPublicas.ParametrosEscopo(recebidoA);
+        var parametrosB = IndiceFotosPublicas.ParametrosEscopo(recebidoB);
+        Assert.Equal("30:2:4", IndiceFotosPublicas.ChaveEscopo(30, parametrosA));
+        Assert.Equal("30:2:9", IndiceFotosPublicas.ChaveEscopo(30, parametrosB));
+        var comandoA = MontadorComando.Montar(operacao, parametrosA);
+        Assert.Equal(4L, comandoA.Parameters["@Tabela_01"].Value);
+        Assert.Equal(DBNull.Value, comandoA.Parameters["@Tabela_02"].Value);
+
+        // Fixture do resultado que o SQL assinado seleciona por tabela:
+        // A tem primeira foto ruim e segunda boa; B so tem preco na tabela 9.
+        var fonte = new List<(int Produto, int Tabela, int Foto, string Conteudo)>
+        {
+            (136, 4, 80, "%%%"),
+            (136, 4, 81, "PNG valido"),
+        };
+        fonte.AddRange(Enumerable.Range(1, 9).Select(i =>
+            (6998, 9, 100 + i, "PNG valido")));
+        var acumuladorA = new AcumuladorIndiceFotosPublicas();
+        foreach (var linha in fonte.Where(x => x.Tabela == 4))
+            acumuladorA.Incluir(linha.Produto, linha.Foto, linha.Conteudo.Length,
+                linha.Conteudo, texto => texto == "PNG valido");
+        Assert.Equal(81, acumuladorA.Fotos[136]);
+        Assert.DoesNotContain(6998, acumuladorA.Fotos.Keys);
+        var acumuladorB = new AcumuladorIndiceFotosPublicas();
+        Assert.Throws<IndiceFotosCapacidadeException>(() =>
+        {
+            foreach (var linha in fonte.Where(x => x.Tabela == 9))
+                acumuladorB.Incluir(linha.Produto, linha.Foto, linha.Conteudo.Length,
+                    linha.Conteudo, texto => texto == "PNG valido");
+        });
     }
 }

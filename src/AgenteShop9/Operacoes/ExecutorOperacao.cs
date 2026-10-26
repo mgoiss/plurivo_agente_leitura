@@ -32,6 +32,9 @@ public sealed class ExecutorOperacao(
     GestorCatalogo gestorCatalogo) : IExecutorOperacao
 {
     private sealed class ResultadoGrandeException : Exception;
+    private readonly SemaphoreSlim _travaIndiceFotos = new(1, 1);
+    private readonly Dictionary<string, (IReadOnlyDictionary<int, int> Fotos, DateTimeOffset Expira)>
+        _indicesFotos = new();
 
     public async Task<MensagemResultado> ExecutarAsync(JsonElement pedido, CancellationToken ct)
     {
@@ -42,7 +45,8 @@ public sealed class ExecutorOperacao(
             return MensagemResultado.Erro(idRequisicao, "pedido_invalido", "pedido sem 'operacao'.");
 
         var catalogo = gestorCatalogo.CatalogoAceito;
-        if (catalogo?.Operacoes is null || !catalogo.Operacoes.TryGetValue(nomeOperacao, out var op))
+        if (catalogo?.Operacoes is null || !catalogo.Operacoes.TryGetValue(nomeOperacao, out var op)
+            || op.UsoInterno)
             return MensagemResultado.Erro(
                 idRequisicao, "operacao_desconhecida", $"operacao '{nomeOperacao}' nao existe no catalogo.");
 
@@ -66,6 +70,11 @@ public sealed class ExecutorOperacao(
         {
             await using var conexao = new SqlConnection(config.ConexaoSql);
             await conexao.OpenAsync(ct);
+            if (op.UsaFotosValidadas)
+            {
+                var fotos = await ObterIndiceFotos(catalogo, recebidos, conexao, ct);
+                await PrepararTabelaFotos(conexao, fotos, ct);
+            }
 
             return paginacao is null
                 ? await ExecutarSemPaginacao(idRequisicao, op, recebidos, conexao, relogio, ct)
@@ -80,10 +89,19 @@ public sealed class ExecutorOperacao(
             log.LogWarning("Operacao {Op} estourou o timeout.", nomeOperacao);
             return MensagemResultado.Erro(idRequisicao, "timeout", "a consulta demorou demais e foi cancelada.");
         }
+        catch (TimeoutException)
+        {
+            return MensagemResultado.Erro(idRequisicao, "timeout", "a preparacao de fotos excedeu o tempo permitido.");
+        }
         catch (ResultadoGrandeException)
         {
             return MensagemResultado.Erro(idRequisicao, "resultado_grande",
                 "a resposta excedeu o limite de texto da operacao.");
+        }
+        catch (IndiceFotosCapacidadeException)
+        {
+            return MensagemResultado.Erro(idRequisicao, "resultado_grande",
+                "o indice de fotos desse catalogo excedeu o limite permitido.");
         }
         catch (SqlException ex) when (ex.Number is 4060 or 208)
         {
@@ -106,6 +124,86 @@ public sealed class ExecutorOperacao(
             log.LogError(ex, "Falha ao executar a operacao {Op}.", nomeOperacao);
             return MensagemResultado.Erro(idRequisicao, "erro_consulta", "falha ao executar a consulta no banco.");
         }
+    }
+
+    private async Task<IReadOnlyDictionary<int, int>> ObterIndiceFotos(
+        Catalogo catalogo, IReadOnlyDictionary<string, JsonElement> recebidos,
+        SqlConnection conexao, CancellationToken ct)
+    {
+        var parametros = IndiceFotosPublicas.ParametrosEscopo(recebidos);
+        var chaveEscopo = IndiceFotosPublicas.ChaveEscopo(catalogo.VersaoCatalogo, parametros);
+
+        await _travaIndiceFotos.WaitAsync(ct);
+        try
+        {
+            if (_indicesFotos.TryGetValue(chaveEscopo, out var existente)
+                && DateTimeOffset.UtcNow < existente.Expira)
+                return existente.Fotos;
+            if (catalogo.Operacoes is null
+                || !catalogo.Operacoes.TryGetValue("catalogo_indice_fotos", out var operacao)
+                || !operacao.UsoInterno)
+                throw new InvalidOperationException("Catalogo publico sem indice de fotos assinado.");
+            if (ValidadorParametros.Validar(operacao, parametros) is not null)
+                throw new ArgumentException("Escopo do indice de fotos invalido.");
+
+            var acumulador = new AcumuladorIndiceFotosPublicas();
+            var relogioIndice = Stopwatch.StartNew();
+            await using (var comando = MontadorComando.Montar(
+                operacao, parametros, conexao: conexao))
+            await using (var leitor = await comando.ExecuteReaderAsync(
+                CommandBehavior.SequentialAccess, ct))
+            {
+                while (await leitor.ReadAsync(ct))
+                {
+                    if (relogioIndice.Elapsed > TimeSpan.FromSeconds(5))
+                        throw new TimeoutException();
+                    var produtoOrdem = leitor.GetInt32(0);
+                    var imagemOrdem = leitor.GetInt32(1);
+                    var tamanho = Convert.ToInt64(leitor.GetValue(2));
+                    var texto = acumulador.PrecisaLerFoto(produtoOrdem)
+                        ? leitor.GetString(3) : null;
+                    acumulador.Incluir(produtoOrdem, imagemOrdem, tamanho,
+                                      texto, IndiceFotosPublicas.FotoValida);
+                }
+            }
+            if (relogioIndice.Elapsed > TimeSpan.FromSeconds(5))
+                throw new TimeoutException();
+            _indicesFotos[chaveEscopo] = (acumulador.Fotos, DateTimeOffset.UtcNow.AddSeconds(300));
+            if (_indicesFotos.Count > 16)
+            {
+                var antiga = _indicesFotos.MinBy(par => par.Value.Expira).Key;
+                _indicesFotos.Remove(antiga);
+            }
+            return acumulador.Fotos;
+        }
+        finally
+        {
+            _travaIndiceFotos.Release();
+        }
+    }
+
+    private static async Task PrepararTabelaFotos(
+        SqlConnection conexao, IReadOnlyDictionary<int, int> fotos, CancellationToken ct)
+    {
+        await using (var comando = conexao.CreateCommand())
+        {
+            comando.CommandText = "CREATE TABLE #FotosValidas (Produto_Ordem int NOT NULL PRIMARY KEY, Imagem_Ordem int NOT NULL)";
+            await comando.ExecuteNonQueryAsync(ct);
+        }
+        if (fotos.Count == 0)
+            return;
+        var tabela = new DataTable();
+        tabela.Columns.Add("Produto_Ordem", typeof(int));
+        tabela.Columns.Add("Imagem_Ordem", typeof(int));
+        foreach (var (produto, imagem) in fotos)
+            tabela.Rows.Add(produto, imagem);
+        using var copia = new SqlBulkCopy(conexao)
+        {
+            DestinationTableName = "#FotosValidas",
+            BatchSize = 1000,
+            BulkCopyTimeout = 2,
+        };
+        await copia.WriteToServerAsync(tabela, ct);
     }
 
     private static async Task<MensagemResultado> ExecutarSemPaginacao(

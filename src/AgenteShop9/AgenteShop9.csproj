@@ -20,6 +20,8 @@
          catalogo assinado do backend (IHttpClientFactory cuida do ciclo de
          vida/DNS — o robo roda dias/semanas como servico do Windows). -->
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.*" />
+    <!-- Validacao integral de PNG/JPEG no agente Windows antes de indexar midia publica. -->
+    <PackageReference Include="System.Drawing.Common" Version="10.0.*" />
   </ItemGroup>
 
 </Project>
