@@ -14,7 +14,7 @@ public class CatalogoCandidatoPublicoTestes
     {
         var candidato = Candidato();
         var emUso = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
-        Assert.Equal(30, candidato.VersaoCatalogo);
+        Assert.Equal(31, candidato.VersaoCatalogo);
         Assert.All(emUso.Operacoes!.Keys, nome => Assert.Contains(nome, candidato.Operacoes!.Keys));
         var foto = candidato.Operacoes!["catalogo_foto"];
         Assert.Equal(1, foto.MaxLinhas);
@@ -116,6 +116,16 @@ public class CatalogoCandidatoPublicoTestes
         Assert.Contains("@Inicio >= DATEADD(DAY, -59", inicio.Sql);
         Assert.Contains("Data_Efetivado_Estoque <= GETDATE()", inicio.Sql);
         Assert.DoesNotContain("Movimento_Documentos_Fiscais", inicio.Sql);
+        var familias = operacoes["catalogo_familias"];
+        foreach (var nome in new[] { "catalogo_classes", "catalogo_subclasses", "catalogo_familias" })
+        {
+            Assert.Contains("categoria.Ordem > 0", operacoes[nome].Sql);
+            Assert.Contains("categoria.Ordem > 0", operacoes[nome].SqlContagem);
+        }
+        Assert.Contains("filial.Codigo = @CodigoFilial", familias.Sql);
+        Assert.Contains("esto.Ordem_Edicao = 0 AND esto.Invalido = 0", familias.Sql);
+        Assert.Contains("esto.Qtde_Estoque_Atual > 0", familias.Sql);
+        Assert.Contains("grade.Ordem_Cor = esto.Ordem_Cor", familias.Sql);
         var relacionados = operacoes["catalogo_relacionados"];
         Assert.Contains("COUNT(DISTINCT item.Ordem_Movimento)", relacionados.Sql);
         Assert.Contains("item.Linha_Excluida = 0", relacionados.Sql);
