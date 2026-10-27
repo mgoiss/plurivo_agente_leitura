@@ -14,8 +14,11 @@ public class CatalogoCandidatoPublicoTestes
     {
         var candidato = Candidato();
         var emUso = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
-        Assert.Equal(31, candidato.VersaoCatalogo);
+        Assert.Equal(32, candidato.VersaoCatalogo);
         Assert.All(emUso.Operacoes!.Keys, nome => Assert.Contains(nome, candidato.Operacoes!.Keys));
+        var capacidade = candidato.Operacoes!["catalogo_ocultacoes_capacidade"];
+        Assert.Equal("SELECT CAST(32 AS int) AS Versao_Catalogo", capacidade.Sql);
+        Assert.Empty(capacidade.Parametros);
         var foto = candidato.Operacoes!["catalogo_foto"];
         Assert.Equal(1, foto.MaxLinhas);
         Assert.Equal(2000, foto.TimeoutMs);
@@ -25,6 +28,7 @@ public class CatalogoCandidatoPublicoTestes
         Assert.Contains("foto.Ordem = @ImagemOrdem", foto.Sql);
         Assert.Contains("preco.Ordem_Tabela_Preco IN", foto.Sql);
         Assert.Contains("grade.Bloqueado_Venda = 0", foto.Sql);
+        Assert.Contains("prod.Ordem_Classe AS Classe_Ordem", foto.Sql);
         Assert.DoesNotContain("OPENJSON", foto.Sql);
         var fotos = candidato.Operacoes["catalogo_fotos"];
         Assert.StartsWith("SELECT TOP (9) foto.Ordem AS Imagem_Ordem\nFROM Prod_Serv AS prod\nINNER JOIN Prod_Serv_Fotos AS foto", fotos.Sql);
@@ -49,7 +53,7 @@ public class CatalogoCandidatoPublicoTestes
     {
         var operacoes = Candidato().Operacoes!;
         var foto = operacoes["catalogo_foto"];
-        Assert.Equal(11, foto.Parametros.Count);
+        Assert.Equal(35, foto.Parametros.Count);
         Assert.All(foto.Parametros, parametro => Assert.Equal("inteiro", parametro.Tipo));
         var tabelas = operacoes["catalogo_tabelas_preco"];
         var comando = MontadorComando.Montar(tabelas, new Dictionary<string, JsonElement>(),
@@ -96,8 +100,7 @@ public class CatalogoCandidatoPublicoTestes
         var operacoes = Candidato().Operacoes!;
         foreach (var nome in new[] { "catalogo_inicio", "catalogo_classes", "catalogo_subclasses",
             "catalogo_familias", "catalogo_produtos_ids", "catalogo_produtos_ids_sem_vendas",
-            "catalogo_cartoes",
-            "catalogo_relacionados" })
+            "catalogo_cartoes", "catalogo_relacionados" })
         {
             var operacao = operacoes[nome];
             Assert.Equal(2000, operacao.TimeoutMs);
@@ -107,6 +110,20 @@ public class CatalogoCandidatoPublicoTestes
             Assert.True(operacao.UsaFotosValidadas);
             Assert.Contains("#FotosValidas", operacao.Sql);
             Assert.DoesNotContain("SELECT *", operacao.Sql);
+        }
+        foreach (var nome in new[] { "catalogo_inicio", "catalogo_classes", "catalogo_subclasses",
+            "catalogo_familias", "catalogo_produtos_ids", "catalogo_produtos_ids_sem_vendas",
+            "catalogo_cartoes", "catalogo_relacionados", "catalogo_produto",
+            "catalogo_variantes", "catalogo_fotos", "catalogo_foto" })
+        {
+            var operacao = operacoes[nome];
+            foreach (var coluna in new[] { "Ordem_Classe", "Ordem_Subclasse", "Ordem_Familia" })
+            {
+                Assert.Contains($"oculto.Ordem = prod.{coluna}", operacao.Sql);
+                if (operacao.SqlContagem is not null)
+                    Assert.Contains($"oculto.Ordem = prod.{coluna}", operacao.SqlContagem);
+            }
+            Assert.Equal(24, operacao.Parametros.Count(p => p.Nome.StartsWith("Ocultar")));
         }
         var inicio = operacoes["catalogo_inicio"];
         Assert.Contains("TOP (7)", inicio.Sql);
