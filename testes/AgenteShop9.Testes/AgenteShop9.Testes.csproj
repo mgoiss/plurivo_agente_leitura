@@ -35,6 +35,7 @@
           Link="fixtures\catalogo.json.minisig" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.candidato-configuracao.json" Link="fixtures\catalogo.candidato-configuracao.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.candidato-publico.json" Link="fixtures\catalogo.candidato-publico.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\catalogo\catalogo.candidato-aceleracao-imagens.json" Link="fixtures\catalogo.candidato-aceleracao-imagens.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.json"
           Link="fixtures\catalogo-real.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

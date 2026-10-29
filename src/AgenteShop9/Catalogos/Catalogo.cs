@@ -47,6 +47,12 @@ public sealed record Operacao
     /// <summary>Limite por coluna textual lida em fluxo. Zero preserva o legado.</summary>
     [JsonPropertyName("max_caracteres_texto")] public int MaxCaracteresTexto { get; init; }
 
+    /// <summary>Prepara #FotosValidas com bytes verificados antes desta consulta.</summary>
+    [JsonPropertyName("usa_fotos_validadas")] public bool UsaFotosValidadas { get; init; }
+
+    /// <summary>Operacao assinada usada somente pelo agente, nunca por pedido remoto.</summary>
+    [JsonPropertyName("uso_interno")] public bool UsoInterno { get; init; }
+
     /// <summary>
     /// Janela maxima, em dias, entre os parametros `inicio` e `fim`. So faz
     /// sentido em operacao com faixa de datas. Ausente = sem limite.

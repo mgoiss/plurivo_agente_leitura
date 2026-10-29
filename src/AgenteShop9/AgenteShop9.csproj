@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>AgenteShop9</RootNamespace>
     <AssemblyName>AgenteShop9</AssemblyName>
+    <Version>1.0.3</Version>
     <!-- ISSUE #7: NAO ligar InvariantGlobalization. O Microsoft.Data.SqlClient
          nao suporta esse modo e estoura NotSupportedException em SqlConnection.Open. -->
     <!-- Publicacao para o servidor Windows do cliente (um .exe so): ver agente/README.md -->
@@ -20,6 +21,8 @@
          catalogo assinado do backend (IHttpClientFactory cuida do ciclo de
          vida/DNS — o robo roda dias/semanas como servico do Windows). -->
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.*" />
+    <!-- Validacao integral de PNG/JPEG no agente Windows antes de indexar midia publica. -->
+    <PackageReference Include="System.Drawing.Common" Version="10.0.*" />
   </ItemGroup>
 
 </Project>
