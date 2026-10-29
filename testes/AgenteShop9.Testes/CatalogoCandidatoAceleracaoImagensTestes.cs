@@ -69,7 +69,7 @@ public class CatalogoCandidatoAceleracaoImagensTestes
         Assert.Contains("SELECT Produto_Ordem, Imagem_Ordem, Foto_Caracteres, Formato_Provavel\nFROM Ranque", op.Sql);
         Assert.Contains("Posicao_Ranque <= 9", op.Sql);
         Assert.Contains("foto.Principal DESC, foto.Posicao ASC, foto.Ordem ASC", op.Sql);
-        Assert.Contains("'iVBORw0KGgo='", op.Sql);
+        Assert.Contains("LEFT(foto.Foto, 11) = 'iVBORw0KGgo'", op.Sql);
         Assert.Contains("'/9j/'", op.Sql);
     }
 
