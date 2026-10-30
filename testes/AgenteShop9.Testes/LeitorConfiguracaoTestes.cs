@@ -54,6 +54,27 @@ public class LeitorConfiguracaoTestes : IDisposable
     }
 
     [Fact]
+    public void Execucoes_simultaneas_e_opcional_e_lida_do_config()
+    {
+        var sem = LeitorConfiguracao.Ler(Arquivo(
+            """{ "conexao_sql": "Server=x;Database=Shop9", "backend_url": "wss://x/agente", "token_agente": "abc" }"""));
+        Assert.Null(sem.ExecucoesSimultaneas);
+
+        var com = LeitorConfiguracao.Ler(Arquivo(
+            """{ "conexao_sql": "Server=x;Database=Shop9", "backend_url": "wss://x/agente", "token_agente": "abc", "execucoes_simultaneas": 12 }"""));
+        Assert.Equal(12, com.ExecucoesSimultaneas);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(33)]
+    public void Execucoes_simultaneas_fora_da_faixa_e_recusada(int valor)
+    {
+        Assert.Throws<ConfiguracaoInvalidaException>(() => LeitorConfiguracao.Ler(Arquivo(
+            "{ \"conexao_sql\": \"Server=x;Database=Shop9\", \"backend_url\": \"wss://x/agente\", \"token_agente\": \"abc\", \"execucoes_simultaneas\": " + valor + " }")));
+    }
+
+    [Fact]
     public void Arquivo_inexistente_da_erro_claro()
     {
         var ex = Assert.Throws<ConfiguracaoInvalidaException>(

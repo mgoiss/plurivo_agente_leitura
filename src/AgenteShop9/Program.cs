@@ -18,7 +18,12 @@ builder.Services.AddSingleton(sp =>
     return LeitorConfiguracao.Ler(caminhoConfig, log);
 });
 
-builder.Services.AddSingleton(new OpcoesAgente());
+builder.Services.AddSingleton(sp =>
+{
+    var padrao = new OpcoesAgente();
+    var config = sp.GetRequiredService<ConfiguracaoAgente>();
+    return padrao with { ExecucoesSimultaneas = config.ExecucoesSimultaneas ?? padrao.ExecucoesSimultaneas };
+});
 builder.Services.AddSingleton<GestorCatalogo>();
 builder.Services.AddHttpClient<BaixadorCatalogo>();
 builder.Services.AddSingleton<IExecutorOperacao, ExecutorOperacao>();
