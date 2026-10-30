@@ -10,6 +10,9 @@ public sealed record OpcoesAgente
     public TimeSpan ReconexaoEsperaInicial { get; init; } = TimeSpan.FromSeconds(1);
     public TimeSpan ReconexaoEsperaMaxima { get; init; } = TimeSpan.FromSeconds(60);
 
+    /// <summary>Quantas operacoes `executar` rodam ao mesmo tempo (as demais esperam vaga).</summary>
+    public int ExecucoesSimultaneas { get; init; } = 4;
+
     /// <summary>Item 4.1: intervalo entre verificacoes de catalogo novo no backend.</summary>
     public TimeSpan IntervaloVerificacaoCatalogo { get; init; } = TimeSpan.FromMinutes(15);
 }

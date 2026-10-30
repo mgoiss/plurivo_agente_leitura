@@ -32,10 +32,22 @@ public sealed class ClienteBackend : IAsyncDisposable
 
     public Task ConectarAsync(Uri url, CancellationToken ct) => _ws.ConnectAsync(url, ct);
 
+    // ClientWebSocket nao aceita dois SendAsync ao mesmo tempo: com execucao
+    // paralela, resultados e heartbeat disputam o envio.
+    private readonly SemaphoreSlim _travaEnvio = new(1, 1);
+
     public async Task EnviarJsonAsync<T>(T mensagem, CancellationToken ct)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(mensagem, OpcoesJson);
-        await _ws.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, ct);
+        await _travaEnvio.WaitAsync(ct);
+        try
+        {
+            await _ws.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, ct);
+        }
+        finally
+        {
+            _travaEnvio.Release();
+        }
     }
 
     /// <summary>

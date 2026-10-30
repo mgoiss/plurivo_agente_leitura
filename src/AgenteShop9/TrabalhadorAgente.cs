@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text.Json;
 using AgenteShop9.Catalogos;
@@ -79,18 +80,26 @@ public sealed class TrabalhadorAgente(
 
         using var sessao = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
 
+        var vagas = new SemaphoreSlim(Math.Max(1, opcoes.ExecucoesSimultaneas));
+        var emAndamento = new ConcurrentDictionary<Task, byte>();
+
         var heartbeat = LacoHeartbeatAsync(cliente, sessao.Token);
         var recepcao = cliente.ReceberAteFecharAsync(
-            msg => TratarMensagemAsync(cliente, msg, sessao.Token), sessao.Token);
+            msg => TratarMensagemAsync(cliente, msg, vagas, emAndamento, sessao.Token), sessao.Token);
 
         var terminou = await Task.WhenAny(heartbeat, recepcao);
-        await sessao.CancelAsync();                       // encerra o outro laco
+        await sessao.CancelAsync();                       // encerra os outros lacos e as execucoes
         await Task.WhenAll(heartbeat, recepcao).ContinueWith(
             _ => { }, TaskScheduler.Default);             // ignora o cancelamento esperado
+        await Task.WhenAll(emAndamento.Keys).ContinueWith(
+            _ => { }, TaskScheduler.Default);             // espera as execucoes soltarem a conexao
+        vagas.Dispose();
         await terminou;                                   // re-lanca a causa real da queda, se houve
     }
 
-    private async Task TratarMensagemAsync(ClienteBackend cliente, string msgJson, CancellationToken ct)
+    private async Task TratarMensagemAsync(
+        ClienteBackend cliente, string msgJson, SemaphoreSlim vagas,
+        ConcurrentDictionary<Task, byte> emAndamento, CancellationToken ct)
     {
         JsonDocument doc;
         try
@@ -112,8 +121,13 @@ public sealed class TrabalhadorAgente(
                     return; // ack do proprio heartbeat
 
                 case "executar":
-                    var resposta = await executor.ExecutarAsync(doc.RootElement, ct);
-                    await cliente.EnviarJsonAsync(resposta, ct);
+                    // Roda fora do laco de recepcao: o laco segue lendo e outras
+                    // requisicoes executam em paralelo, ate o limite de vagas.
+                    var idExecucao = doc.RootElement.TryGetProperty("id_requisicao", out var ie) ? ie.GetString() : null;
+                    var tarefa = ExecutarEmParaleloAsync(cliente, msgJson, idExecucao, vagas, ct);
+                    emAndamento[tarefa] = 0;
+                    _ = tarefa.ContinueWith(
+                        t => emAndamento.TryRemove(t, out _), TaskScheduler.Default);
                     return;
 
                 default:
@@ -127,13 +141,55 @@ public sealed class TrabalhadorAgente(
         }
     }
 
+    private async Task ExecutarEmParaleloAsync(
+        ClienteBackend cliente, string msgJson, string? idRequisicao, SemaphoreSlim vagas, CancellationToken ct)
+    {
+        try
+        {
+            await vagas.WaitAsync(ct);
+            try
+            {
+                using var doc = JsonDocument.Parse(msgJson);
+                var resposta = await executor.ExecutarAsync(doc.RootElement, ct);
+                await cliente.EnviarJsonAsync(resposta, ct);
+            }
+            finally
+            {
+                vagas.Release();
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // sessao encerrando; o backend trata a queda da conexao
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Falha ao executar a requisicao {Id}.", idRequisicao);
+            if (idRequisicao is null) return;
+            try
+            {
+                await cliente.EnviarJsonAsync(
+                    MensagemResultado.Erro(idRequisicao, "erro_interno", "falha ao executar a operacao."), ct);
+            }
+            catch (Exception)
+            {
+                // conexao ja caiu
+            }
+        }
+    }
+
     private async Task LacoHeartbeatAsync(ClienteBackend cliente, CancellationToken ct)
     {
         var versao = VersaoAgente.Atual;
         while (!ct.IsCancellationRequested && cliente.Estado == WebSocketState.Open)
         {
             await cliente.EnviarJsonAsync(
-                new Heartbeat { VersaoAgente = versao, VersaoCatalogo = gestorCatalogo.VersaoAceita }, ct);
+                new Heartbeat
+                {
+                    VersaoAgente = versao,
+                    VersaoCatalogo = gestorCatalogo.VersaoAceita,
+                    ExecucoesSimultaneas = Math.Max(1, opcoes.ExecucoesSimultaneas),
+                }, ct);
             log.LogDebug("Heartbeat enviado.");
             await Task.Delay(opcoes.IntervaloHeartbeat, ct);
         }
