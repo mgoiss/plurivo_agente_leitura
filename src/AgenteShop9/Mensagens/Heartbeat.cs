@@ -17,4 +17,11 @@ public sealed record Heartbeat
     /// <summary>0 = nenhum catalogo ainda. Passa a valer a partir do item 1.3/1.4.</summary>
     [JsonPropertyName("versao_catalogo")]
     public int VersaoCatalogo { get; init; }
+
+    /// <summary>
+    /// Quantas operacoes `executar` o agente roda ao mesmo tempo. Agente antigo
+    /// nao manda o campo; o backend entao assume 1.
+    /// </summary>
+    [JsonPropertyName("execucoes_simultaneas")]
+    public int ExecucoesSimultaneas { get; init; } = 1;
 }

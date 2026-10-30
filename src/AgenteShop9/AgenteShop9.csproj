@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>AgenteShop9</RootNamespace>
     <AssemblyName>AgenteShop9</AssemblyName>
-    <Version>1.0.3</Version>
+    <Version>1.1.0</Version>
     <!-- ISSUE #7: NAO ligar InvariantGlobalization. O Microsoft.Data.SqlClient
          nao suporta esse modo e estoura NotSupportedException em SqlConnection.Open. -->
     <!-- Publicacao para o servidor Windows do cliente (um .exe so): ver agente/README.md -->

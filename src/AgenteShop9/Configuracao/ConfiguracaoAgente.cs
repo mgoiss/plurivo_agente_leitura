@@ -25,4 +25,11 @@ public sealed record ConfiguracaoAgente
     /// pasta do proprio config. Baixar do backend e o item 4.1.
     /// </summary>
     public required string CatalogoCaminho { get; init; }
+
+    /// <summary>
+    /// Opcional (config.json: execucoes_simultaneas, 1 a 32). Quantas operacoes
+    /// rodam ao mesmo tempo contra o SQL Server deste cliente. Sem o campo, vale o
+    /// padrao de OpcoesAgente.
+    /// </summary>
+    public int? ExecucoesSimultaneas { get; init; }
 }
