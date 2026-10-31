@@ -145,7 +145,7 @@ public class CatalogoCandidatoFiltroVariacaoTestes
         var op = Candidato().Operacoes![Opcoes];
         Assert.False(op.UsoInterno);
         Assert.True(op.UsaFotosValidadas);
-        Assert.Equal(500, op.MaxLinhas);
+        Assert.Equal(2000, op.MaxLinhas);
         Assert.Equal(3000, op.TimeoutMs);
         Assert.Equal(500, op.MaxCaracteresTexto);
         Assert.Null(op.Ordenacao);

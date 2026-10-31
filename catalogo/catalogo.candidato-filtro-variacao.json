@@ -4525,7 +4525,7 @@
           "obrigatorio": false
         }
       ],
-      "max_linhas": 500,
+      "max_linhas": 2000,
       "timeout_ms": 3000,
       "max_caracteres_texto": 500,
       "usa_fotos_validadas": true
