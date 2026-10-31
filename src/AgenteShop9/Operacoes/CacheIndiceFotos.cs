@@ -17,6 +17,11 @@ namespace AgenteShop9.Operacoes;
 ///   <see cref="OpcoesCacheIndiceFotos.IdadeMaxima"/>, porque a impressao
 ///   (contagem, maior ordem, soma de tamanhos, checksum de ordem/posicao) nao
 ///   enxerga troca de foto por outra de mesmo tamanho.
+/// - Uma construcao por vez em todo o cache (semaforo global): o aquecimento
+///   dispara varios escopos no boot, junto com o Shop9, e cada indice ocupa
+///   dezenas de MB. A primeira carga de um escopo novo pode esperar a de outro.
+///   A espera na fila nao conta para o limite de tempo da construcao, que e
+///   cronometrado dentro do proprio construtor.
 /// - Falha na atualizacao mantem o indice antigo e so tenta de novo depois do
 ///   recuo, sem laco apertado.
 /// </summary>
@@ -37,6 +42,7 @@ public sealed class CacheIndiceFotos(
     private readonly Func<DateTimeOffset> _agora = agora ?? (() => DateTimeOffset.UtcNow);
     private readonly CancellationTokenSource _encerramento = new();
     private readonly object _trava = new();
+    private readonly SemaphoreSlim _umaPorVez = new(1, 1);
     private readonly Dictionary<string, Entrada> _entradas = new();
     private readonly Dictionary<string, Task<IReadOnlyDictionary<int, int>>> _emAndamento = new();
     private readonly Dictionary<string, DateTimeOffset> _proximaTentativa = new();
@@ -97,8 +103,10 @@ public sealed class CacheIndiceFotos(
         _ = tarefa.ContinueWith(t =>
         {
             var falhou = t.IsFaulted && !_encerramento.IsCancellationRequested;
+            bool haIndiceAnterior;
             lock (_trava)
             {
+                haIndiceAnterior = _entradas.ContainsKey(chave);
                 if (falhou)
                     _proximaTentativa[chave] = _agora() + _opcoes.Recuo;
                 _emAndamento.Remove(chave);
@@ -106,8 +114,10 @@ public sealed class CacheIndiceFotos(
             if (falhou)
                 // So o tipo: a mensagem pode trazer detalhe do banco (spec 3.4).
                 log.LogWarning(
-                    "Atualizacao do indice de fotos falhou ({Tipo}); mantem o indice anterior e tenta de novo apos {RecuoSegundos:0}s.",
-                    t.Exception!.GetBaseException().GetType().Name, _opcoes.Recuo.TotalSeconds);
+                    "Atualizacao do indice de fotos falhou ({Tipo}); {Situacao} e tenta de novo apos {RecuoSegundos:0}s.",
+                    t.Exception!.GetBaseException().GetType().Name,
+                    haIndiceAnterior ? "mantem o indice anterior" : "ainda nao ha indice",
+                    _opcoes.Recuo.TotalSeconds);
             else if (t.IsFaulted)
                 _ = t.Exception;
         }, TaskScheduler.Default);
@@ -117,7 +127,31 @@ public sealed class CacheIndiceFotos(
     private async Task<IReadOnlyDictionary<int, int>> AtualizarAsync(
         string chave, Construtor construir, LeitorImpressao? impressao)
     {
-        var ct = _encerramento.Token;
+        CancellationToken ct;
+        try
+        {
+            ct = _encerramento.Token;
+        }
+        catch (ObjectDisposedException)
+        {
+            throw new OperationCanceledException();
+        }
+
+        // Fila global: impressao digital e construcao rodam sob o mesmo semaforo.
+        await _umaPorVez.WaitAsync(ct);
+        try
+        {
+            return await AtualizarSerializadoAsync(chave, construir, impressao, ct);
+        }
+        finally
+        {
+            _umaPorVez.Release();
+        }
+    }
+
+    private async Task<IReadOnlyDictionary<int, int>> AtualizarSerializadoAsync(
+        string chave, Construtor construir, LeitorImpressao? impressao, CancellationToken ct)
+    {
         Entrada? atual;
         lock (_trava)
             _entradas.TryGetValue(chave, out atual);
@@ -161,7 +195,13 @@ public sealed class CacheIndiceFotos(
         return fotos;
     }
 
-    public void Dispose() => _encerramento.Cancel();
+    public void Dispose()
+    {
+        _encerramento.Cancel();
+        // O token ja cancelado continua valido para quem o copiou; o semaforo
+        // nao tem handle alocado, nao precisa de Dispose.
+        _encerramento.Dispose();
+    }
 }
 
 /// <summary>Valores padrao: validade de 5 min (igual ao TTL anterior), recuo de 15 s, ate 12 renovacoes (~1 h).</summary>

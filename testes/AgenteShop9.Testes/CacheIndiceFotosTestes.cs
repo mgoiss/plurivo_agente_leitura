@@ -323,4 +323,112 @@ public class CacheIndiceFotosTestes
 
         await aquecimento.WaitAsync(TimeSpan.FromSeconds(5));
     }
+
+    private static CacheIndiceFotos.Construtor ConstrutorContado(
+        int[] atual, int[] maximo, TaskCompletionSource portao, Func<Task>? aoComecar = null) => async ct =>
+    {
+        var agora = Interlocked.Increment(ref atual[0]);
+        int visto;
+        while (agora > (visto = Volatile.Read(ref maximo[0]))
+               && Interlocked.CompareExchange(ref maximo[0], agora, visto) != visto) { }
+        try
+        {
+            if (aoComecar is not null)
+                await aoComecar();
+            await portao.Task.WaitAsync(ct);
+            return Indice(1);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref atual[0]);
+        }
+    };
+
+    [Fact]
+    public async Task Escopos_diferentes_nunca_constroem_em_paralelo()
+    {
+        var relogio = new Relogio();
+        using var cache = Novo(relogio);
+        var portao = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int[] atual = [0], maximo = [0], iniciadas = [0];
+        var construtor = ConstrutorContado(atual, maximo, portao, () =>
+        {
+            Interlocked.Increment(ref iniciadas[0]);
+            return Task.CompletedTask;
+        });
+
+        var aquecimentos = Enumerable.Range(0, 8)
+            .Select(i => cache.Aquecer($"k{i}", construtor, null)).ToArray();
+        await Esperar(() => Volatile.Read(ref iniciadas[0]) == 1);
+        await Task.Delay(100);
+        Assert.Equal(1, Volatile.Read(ref iniciadas[0]));   // as outras esperam na fila
+
+        portao.SetResult();
+        await Task.WhenAll(aquecimentos).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(1, maximo[0]);
+        Assert.Equal(8, Volatile.Read(ref iniciadas[0]));
+
+        // Expiradas juntas: a reconstrucao em segundo plano tambem e uma por vez.
+        relogio.Agora += TimeSpan.FromSeconds(301);
+        foreach (var i in Enumerable.Range(0, 8))
+            await cache.ObterAsync($"k{i}", construtor, null, default);
+        await Esperar(() => Volatile.Read(ref iniciadas[0]) == 16);
+        await Task.Delay(100);
+        Assert.Equal(1, maximo[0]);
+    }
+
+    [Fact]
+    public async Task Espera_na_fila_nao_consome_o_tempo_de_quem_constroi_e_o_expirado_nao_espera()
+    {
+        // O limite de 12 s vive no construtor (cronometro proprio, iniciado ao
+        // comecar a construir): o cache so chama o construtor depois de obter a vez.
+        var relogio = new Relogio();
+        using var cache = Novo(relogio);
+        var primeiro = new Fonte { Portao = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        var segundo = new Fonte();
+
+        var aquecimento = cache.Aquecer("a", primeiro.Construtor, null);
+        await Esperar(() => primeiro.Construcoes == 1);
+        var espera = cache.ObterAsync("b", segundo.Construtor, null, default);
+        await Task.Delay(100);
+        Assert.Equal(0, segundo.Construcoes);   // construtor nem foi chamado na fila
+        Assert.False(espera.IsCompleted);
+
+        primeiro.Portao.SetResult();
+        await aquecimento;
+        Assert.Equal(1, (await espera.WaitAsync(TimeSpan.FromSeconds(5)))[1]);
+        Assert.Equal(1, segundo.Construcoes);
+
+        // Expirado de "b" com a fila ocupada: serve o antigo na hora.
+        relogio.Agora += TimeSpan.FromSeconds(301);
+        primeiro.Portao = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ocupando = cache.Aquecer("c", primeiro.Construtor, null);
+        await Esperar(() => primeiro.Construcoes == 2);
+        Assert.Equal(1, (await cache.ObterAsync("b", segundo.Construtor, null, default))[1]);
+        primeiro.Portao.SetResult();
+        await ocupando;
+    }
+
+    [Fact]
+    public async Task Desligar_durante_a_espera_na_fila_libera_sem_travar()
+    {
+        var relogio = new Relogio();
+        var cache = Novo(relogio);
+        var ocupada = new Fonte { Portao = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        var naFila = new Fonte();
+
+        var primeiro = cache.Aquecer("a", ocupada.Construtor, null);
+        await Esperar(() => ocupada.Construcoes == 1);
+        var segundo = cache.Aquecer("b", naFila.Construtor, null);
+        var requisicao = cache.ObterAsync("b", naFila.Construtor, null, default);
+        await Task.Delay(50);
+
+        cache.Dispose();
+
+        await primeiro.WaitAsync(TimeSpan.FromSeconds(5));
+        await segundo.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => requisicao.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(0, naFila.Construcoes);
+    }
 }
