@@ -9,6 +9,15 @@ namespace AgenteShop9.Operacoes;
 ///
 /// - Indice expirado continua sendo servido (stale-while-revalidate); a
 ///   atualizacao roda em segundo plano, uma por escopo por vez.
+/// - Com leitor de impressao, a requisicao que detecta a expiracao faz UMA
+///   conferencia da impressao (issue #121), com tempo maximo
+///   <see cref="OpcoesCacheIndiceFotos.TempoConferencia"/>. Impressao igual:
+///   renova a validade e serve, sem reconstruir. Diferente, nula, falha ou
+///   estouro: serve o indice antigo e reconstroi em segundo plano. As demais
+///   requisicoes do escopo, durante a conferencia, usam o indice atual sem
+///   esperar. A conferencia fica FORA do semaforo global: e uma consulta
+///   barata com prazo curto e, na fila atras de uma construcao, sempre
+///   estouraria o prazo.
 /// - So a primeira carga de um escopo (sem indice nenhum) faz o chamador
 ///   esperar; chamadores simultaneos compartilham a mesma construcao.
 /// - Se a impressao digital for igual a da ultima construcao, so renova a
@@ -34,6 +43,9 @@ public sealed class CacheIndiceFotos(
     /// <summary>Texto que muda quando o conjunto elegivel de fotos muda.</summary>
     public delegate Task<string> LeitorImpressao(CancellationToken ct);
 
+    /// <summary>Resultado da conferencia (issue #121): evita ler a impressao de novo na reconstrucao.</summary>
+    private sealed record ImpressaoLida(string? Valor);
+
     private sealed record Entrada(
         IReadOnlyDictionary<int, int> Fotos, DateTimeOffset Expira, string? Impressao,
         int Renovacoes, DateTimeOffset ConstruidoEm);
@@ -46,6 +58,7 @@ public sealed class CacheIndiceFotos(
     private readonly Dictionary<string, Entrada> _entradas = new();
     private readonly Dictionary<string, Task<IReadOnlyDictionary<int, int>>> _emAndamento = new();
     private readonly Dictionary<string, DateTimeOffset> _proximaTentativa = new();
+    private readonly Dictionary<string, Task> _conferencias = new();
 
     /// <summary>
     /// Devolve o indice do escopo. Sem entrada, espera a primeira construcao;
@@ -55,23 +68,102 @@ public sealed class CacheIndiceFotos(
     public async Task<IReadOnlyDictionary<int, int>> ObterAsync(
         string chave, Construtor construir, LeitorImpressao? impressao, CancellationToken ct)
     {
-        Task<IReadOnlyDictionary<int, int>> primeiraCarga;
+        Task<IReadOnlyDictionary<int, int>>? primeiraCarga = null;
+        Task? conferencia = null;
+        Entrada? entrada;
         lock (_trava)
         {
-            if (_entradas.TryGetValue(chave, out var entrada))
+            if (_entradas.TryGetValue(chave, out entrada))
             {
                 if (_agora() >= entrada.Expira && !_emAndamento.ContainsKey(chave)
+                    && !_conferencias.ContainsKey(chave)
                     && (!_proximaTentativa.TryGetValue(chave, out var depois) || _agora() >= depois))
-                    IniciarLocked(chave, construir, impressao);
-                return entrada.Fotos;
+                {
+                    if (impressao is null)
+                        IniciarLocked(chave, construir, impressao);
+                    else
+                    {
+                        var vista = entrada;
+                        conferencia = Task.Run(() => ConferirAsync(chave, vista, construir, impressao));
+                        _conferencias[chave] = conferencia;
+                    }
+                }
             }
-            primeiraCarga = _emAndamento.TryGetValue(chave, out var existente)
-                ? existente
-                : IniciarLocked(chave, construir, impressao);
+            else
+                primeiraCarga = _emAndamento.TryGetValue(chave, out var existente)
+                    ? existente
+                    : IniciarLocked(chave, construir, impressao);
+        }
+        if (entrada is not null)
+        {
+            // So quem detectou a expiracao espera (no maximo o tempo da
+            // conferencia, que nunca falha); as demais saem na hora.
+            if (conferencia is not null)
+                await conferencia.WaitAsync(ct);
+            return entrada.Fotos;
         }
         // A espera respeita o cancelamento da requisicao; a construcao nao:
         // ela e compartilhada e pertence ao cache.
-        return await primeiraCarga.WaitAsync(ct);
+        return await primeiraCarga!.WaitAsync(ct);
+    }
+
+    /// <summary>
+    /// Conferencia unica da impressao de um indice expirado (issue #121). Nunca
+    /// falha. Fora do semaforo global; o prazo vale mesmo que o leitor ignore o
+    /// cancelamento (a leitura abandonada tem a falha observada).
+    /// </summary>
+    private async Task ConferirAsync(
+        string chave, Entrada vista, Construtor construir, LeitorImpressao impressao)
+    {
+        var reconstruir = true;
+        ImpressaoLida previa = new(null);
+        try
+        {
+            using var prazo = CancellationTokenSource.CreateLinkedTokenSource(_encerramento.Token);
+            prazo.CancelAfter(_opcoes.TempoConferencia);
+            var leitura = impressao(prazo.Token);
+            try
+            {
+                var nova = await leitura.WaitAsync(prazo.Token);
+                previa = new(nova);
+                if (nova is not null && nova == vista.Impressao
+                    && vista.Renovacoes < _opcoes.MaxRenovacoes
+                    && _agora() - vista.ConstruidoEm < _opcoes.IdadeMaxima)
+                {
+                    lock (_trava)
+                        if (_entradas.TryGetValue(chave, out var corrente) && ReferenceEquals(corrente, vista))
+                            _entradas[chave] = vista with
+                            {
+                                Expira = _agora() + _opcoes.Validade, Renovacoes = vista.Renovacoes + 1,
+                            };
+                    reconstruir = false;
+                }
+            }
+            catch (OperationCanceledException) when (!_encerramento.IsCancellationRequested)
+            {
+                log.LogWarning("Conferencia da impressao do indice de fotos estourou {Ms} ms; reconstrui em segundo plano.",
+                    (int)_opcoes.TempoConferencia.TotalMilliseconds);
+                _ = leitura.ContinueWith(t => _ = t.Exception, TaskScheduler.Default);
+            }
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+        {
+            reconstruir = false;   // desligando
+        }
+        catch (Exception ex)
+        {
+            log.LogWarning("Conferencia da impressao do indice de fotos falhou ({Tipo}); reconstrui em segundo plano.",
+                ex.GetType().Name);
+        }
+        finally
+        {
+            lock (_trava)
+            {
+                _conferencias.Remove(chave);
+                if (reconstruir && !_encerramento.IsCancellationRequested && !_emAndamento.ContainsKey(chave))
+                    IniciarLocked(chave, construir, impressao, previa);
+            }
+        }
     }
 
     /// <summary>
@@ -93,10 +185,11 @@ public sealed class CacheIndiceFotos(
     }
 
     private Task<IReadOnlyDictionary<int, int>> IniciarLocked(
-        string chave, Construtor construir, LeitorImpressao? impressao)
+        string chave, Construtor construir, LeitorImpressao? impressao,
+        ImpressaoLida? previa = null)
     {
         // Task.Run: nada da atualizacao roda sincronamente dentro da trava.
-        var tarefa = Task.Run(() => AtualizarAsync(chave, construir, impressao));
+        var tarefa = Task.Run(() => AtualizarAsync(chave, construir, impressao, previa));
         _emAndamento[chave] = tarefa;
         // Observa a falha para nunca virar excecao nao observada; quem espera
         // (primeira carga) ainda recebe a excecao pelo proprio await.
@@ -125,7 +218,7 @@ public sealed class CacheIndiceFotos(
     }
 
     private async Task<IReadOnlyDictionary<int, int>> AtualizarAsync(
-        string chave, Construtor construir, LeitorImpressao? impressao)
+        string chave, Construtor construir, LeitorImpressao? impressao, ImpressaoLida? previa)
     {
         CancellationToken ct;
         try
@@ -141,7 +234,7 @@ public sealed class CacheIndiceFotos(
         await _umaPorVez.WaitAsync(ct);
         try
         {
-            return await AtualizarSerializadoAsync(chave, construir, impressao, ct);
+            return await AtualizarSerializadoAsync(chave, construir, impressao, previa, ct);
         }
         finally
         {
@@ -150,7 +243,8 @@ public sealed class CacheIndiceFotos(
     }
 
     private async Task<IReadOnlyDictionary<int, int>> AtualizarSerializadoAsync(
-        string chave, Construtor construir, LeitorImpressao? impressao, CancellationToken ct)
+        string chave, Construtor construir, LeitorImpressao? impressao, ImpressaoLida? previa,
+        CancellationToken ct)
     {
         Entrada? atual;
         lock (_trava)
@@ -158,8 +252,8 @@ public sealed class CacheIndiceFotos(
 
         // A impressao e lida ANTES da construcao: se o banco mudar no meio, a
         // impressao guardada fica velha e a proxima checagem reconstroi.
-        string? nova = null;
-        if (impressao is not null)
+        string? nova = previa?.Valor;
+        if (previa is null && impressao is not null)
             try
             {
                 nova = await impressao(ct);
@@ -212,4 +306,7 @@ public sealed record OpcoesCacheIndiceFotos
     public int MaxRenovacoes { get; init; } = 12;
     public TimeSpan IdadeMaxima { get; init; } = TimeSpan.FromHours(1);
     public int MaxEscopos { get; init; } = 16;
+
+    /// <summary>Prazo da conferencia da impressao de um indice expirado (issue #121).</summary>
+    public TimeSpan TempoConferencia { get; init; } = TimeSpan.FromMilliseconds(500);
 }
