@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using AgenteShop9.Catalogos;
 using AgenteShop9.Operacoes;
@@ -55,17 +56,21 @@ public class CatalogoCandidatoIndiceFotosTestes
     }
 
     [Fact]
-    public void Mantem_todas_as_operacoes_do_candidato_33_e_acrescenta_a_impressao()
+    public void Mantem_todas_as_operacoes_do_candidato_v35_identicas_e_acrescenta_a_impressao()
     {
         var novas = Candidato().Operacoes!;
-        var antigas = Catalogo.Analisar(File.ReadAllBytes(
-            Path.Combine(AppContext.BaseDirectory, "fixtures", "catalogo.candidato-aceleracao-imagens.json"))).Operacoes!;
-        foreach (var (nome, op) in antigas)
+        var anterior = Catalogo.Analisar(File.ReadAllBytes(
+            Path.Combine(AppContext.BaseDirectory, "fixtures", "catalogo.candidato-filtro-variacao.json")));
+        Assert.Equal(35, anterior.VersaoCatalogo);
+        foreach (var (nome, op) in anterior.Operacoes!)
         {
-            // As operacoes da v34/v35 (filtro de variacao) mudaram o SQL de algumas;
-            // aqui so se garante que nenhuma operacao sumiu.
             Assert.Contains(nome, novas.Keys);
+            // Serializar o registro inteiro compara o SQL e todas as propriedades
+            // (parametros, limites, paginacao, uso interno, fotos validadas...).
+            Assert.Equal(op.Sql, novas[nome].Sql);
+            Assert.Equal(JsonSerializer.Serialize(op), JsonSerializer.Serialize(novas[nome]));
         }
+        Assert.Equal(anterior.Operacoes!.Count + 1, novas.Count);
         Assert.Contains(Nome, novas.Keys);
     }
 }
