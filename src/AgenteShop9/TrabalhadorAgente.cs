@@ -27,6 +27,8 @@ public sealed class TrabalhadorAgente(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         gestorCatalogo.Inicializar();
+        // Issue #119: aquece o indice de fotos sem esperar e sem atrasar a conexao.
+        (executor as IAquecedorIndiceFotos)?.Aquecer();
 
         var url = new Uri(config.BackendUrl);
         var politica = new PoliticaReconexao(opcoes.ReconexaoEsperaInicial, opcoes.ReconexaoEsperaMaxima);
