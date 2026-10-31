@@ -383,9 +383,14 @@ public class CacheIndiceFotosTestes
 
         // Expiradas juntas: a reconstrucao em segundo plano tambem e uma por vez.
         relogio.Agora += TimeSpan.FromSeconds(301);
-        foreach (var i in Enumerable.Range(0, 8))
-            await cache.ObterAsync($"k{i}", construtor, null, default);
-        await Esperar(() => Volatile.Read(ref iniciadas[0]) == 16);
+        // A continuacao que libera a chave de _emAndamento roda no pool, sem ordem
+        // garantida: repete a consulta ate a reconstrucao ser disparada.
+        await Esperar(() =>
+        {
+            foreach (var i in Enumerable.Range(0, 8))
+                cache.ObterAsync($"k{i}", construtor, null, default).GetAwaiter().GetResult();
+            return Volatile.Read(ref iniciadas[0]) == 16;
+        });
         await Task.Delay(100);
         Assert.Equal(1, maximo[0]);
     }
