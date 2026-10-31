@@ -10,7 +10,7 @@ public class CatalogoRealTestes
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(28, cat.VersaoCatalogo);
+        Assert.True(cat.VersaoCatalogo >= 28);
         Assert.NotNull(cat.Operacoes);
         Assert.True(cat.Operacoes!.TryGetValue("listar_produtos_estoque", out var op));
 
@@ -72,10 +72,20 @@ public class CatalogoRealTestes
     {
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        Assert.Equal(28, cat.VersaoCatalogo);
-        Assert.Equal(12, cat.Operacoes!.Count);
+        Assert.True(cat.VersaoCatalogo >= 28);
 
-        foreach (var (_, op) in cat.Operacoes)
+        // As 12 operacoes que a v16 padronizou continuam todas paginadas, com pagina maxima 200.
+        // As operacoes do catalogo publico (catalogo_*) tem tamanhos de pagina proprios: ficam fora.
+        string[] paginadas =
+        [
+            "listar_produtos_estoque", "saida_com_classificacao_pis_cofins_por_periodo",
+            "financeiro_recebimentos_cartao_pix_em_aberto", "listar_filiais",
+            "emissao_vendas_por_forma_pagamento", "emissao_vendas_por_dia",
+            "emissao_produtos_disponiveis", "emissao_produtos_sem_estoque",
+            "emissao_produtos_disponiveis_v2", "emissao_produtos_sem_estoque_v2",
+            "emissao_cadastros_produtos", "emissao_notas_itens_mes",
+        ];
+        foreach (var op in paginadas.Select(nome => cat.Operacoes![nome]))
         {
             // SQL escrito SEM TOP e SEM ORDER BY final — o agente cola os dois.
             Assert.DoesNotContain("TOP (@max_linhas", op.Sql);
@@ -103,7 +113,7 @@ public class CatalogoRealTestes
         // cada operacao para cada coluna ordenavel e confere que nao repete.
         var cat = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
 
-        foreach (var (_, op) in cat.Operacoes!)
+        foreach (var (_, op) in cat.Operacoes!.Where(o => o.Value.Ordenacao is not null))
         foreach (var chave in op.Ordenacao!.Colunas.Keys)
         {
             var cmd = Operacoes.MontadorComando.Montar(

@@ -1,5 +1,5 @@
 {
-  "versao_catalogo": 28,
+  "versao_catalogo": 35,
   "operacoes": {
     "listar_produtos_estoque": {
       "sql": "SELECT prod.Ordem, prod.Codigo, prod.Nome, un.Codigo AS cod_un, un.Nome AS nome_un, clas.Codigo AS cod_classe, clas.Nome AS nome_classe, sub.Codigo AS cod_subclasse, sub.Nome AS nome_subclasse, esto.Qtde_Estoque_Atual FROM Prod_Serv AS prod INNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda INNER JOIN Classes AS clas ON clas.Ordem = prod.Ordem_Classe INNER JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse INNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem WHERE esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilial) AND (@Codigo IS NULL OR prod.Codigo = @Codigo) AND (@Nome IS NULL OR prod.Nome LIKE '%' + @Nome + '%') AND (@CodigoClasse IS NULL OR clas.Codigo = @CodigoClasse) AND (@CodigoSubclasse IS NULL OR sub.Codigo = @CodigoSubclasse) AND (@EstoqueMinimo IS NULL OR esto.Qtde_Estoque_Atual >= @EstoqueMinimo) AND (@EstoqueMaximo IS NULL OR esto.Qtde_Estoque_Atual <= @EstoqueMaximo) AND (@EstoqueMaiorQue IS NULL OR esto.Qtde_Estoque_Atual > @EstoqueMaiorQue) AND (@EstoqueMenorQue IS NULL OR esto.Qtde_Estoque_Atual < @EstoqueMenorQue)",
@@ -640,6 +640,3895 @@
       "max_linhas": 10000,
       "timeout_ms": 30000,
       "periodo_max_dias": 31
+    },
+    "catalogo_tabelas_preco": {
+      "sql": "SELECT tab.Ordem, tab.Nome FROM Tabelas_Preco AS tab WHERE tab.Ordem IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08)",
+      "sql_contagem": "SELECT COUNT(*) FROM Tabelas_Preco AS tab WHERE tab.Ordem IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08)",
+      "parametros": [
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 200,
+      "timeout_ms": 2000,
+      "ordenacao": {
+        "colunas": {
+          "ordem": "tab.Ordem"
+        },
+        "padrao": {
+          "coluna": "ordem",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "tab.Ordem"
+      ],
+      "tamanho_pagina_padrao": 100,
+      "tamanho_pagina_max": 100,
+      "max_caracteres_texto": 500
+    },
+    "catalogo_ocultacoes_capacidade": {
+      "sql": "SELECT CAST(32 AS int) AS Versao_Catalogo",
+      "parametros": [],
+      "max_linhas": 1,
+      "timeout_ms": 2000
+    },
+    "catalogo_foto": {
+      "sql": "SELECT TOP (1) foto.Foto AS Foto_Base64,\n       prod.Ordem_Classe AS Classe_Ordem,\n       prod.Ordem_Subclasse AS Subclasse_Ordem,\n       prod.Ordem_Familia AS Familia_Ordem\nFROM Prod_Serv AS prod\nINNER JOIN Prod_Serv_Fotos AS foto ON foto.Ordem_Prod_Serv = prod.Ordem\nWHERE prod.Ordem = @ProdutoOrdem AND foto.Ordem = @ImagemOrdem\n  AND prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n  AND DATALENGTH(foto.Foto) BETWEEN 1 AND 1000000\n  AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n  AND EXISTS (\n      SELECT 1 FROM Prod_Serv_Precos AS preco\n      WHERE preco.Ordem_Prod_Serv = prod.Ordem AND preco.Inativo = 0 AND preco.Preco > 0\n        AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04,\n                                         @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08)\n  )\n  AND (prod.Tipo = 'N' OR EXISTS (\n      SELECT 1 FROM Prod_Serv_Grade AS grade\n      WHERE grade.Ordem_Prod_Serv = prod.Ordem\n        AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0\n  ))",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "ProdutoOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "ImagemOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 1,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 1000000
+    },
+    "catalogo_produto": {
+      "sql": "WITH Permitidas AS (SELECT v.Tabela_Ordem FROM (VALUES (@Tabela_01), (@Tabela_02), (@Tabela_03), (@Tabela_04), (@Tabela_05), (@Tabela_06), (@Tabela_07), (@Tabela_08)) AS v(Tabela_Ordem) WHERE v.Tabela_Ordem IS NOT NULL)\nSELECT prod.Ordem AS Produto_Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n       prod.Ordem_Classe AS Classe_Ordem, prod.Ordem_Subclasse AS Subclasse_Ordem,\n       prod.Ordem_Familia AS Familia_Ordem,\n       tab.Ordem AS Tabela_Ordem, tab.Nome AS Tabela_Nome,\n       CASE WHEN preco.Inativo = 0 AND preco.Preco > 0\n            THEN CONVERT(varchar(40), CAST(preco.Preco AS decimal(19,4))) ELSE NULL END AS Preco,\n       CASE WHEN preco.Ordem_Prod_Serv IS NULL THEN 'ausente'\n            WHEN preco.Inativo = 0 AND preco.Preco > 0 THEN 'disponivel'\n            ELSE 'nao_disponivel' END AS Situacao_Preco,\n       prod.Web_Obs1 AS Web_Obs1,\n       prod.Web_Obs2 AS Web_Obs2\nFROM Prod_Serv AS prod\nCROSS JOIN Permitidas AS permitida\nINNER JOIN Tabelas_Preco AS tab ON tab.Ordem = permitida.Tabela_Ordem\nLEFT JOIN Prod_Serv_Precos AS preco ON preco.Ordem_Prod_Serv = prod.Ordem\n    AND preco.Ordem_Tabela_Preco = tab.Ordem\nWHERE prod.Ordem = @ProdutoOrdem AND prod.Tipo IN ('N', 'G')\n  AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n  AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n  AND EXISTS (SELECT 1 FROM Prod_Serv_Fotos AS f\n              WHERE f.Ordem_Prod_Serv = prod.Ordem AND DATALENGTH(f.Foto) BETWEEN 1 AND 1000000)\n  AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS p\n              WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Inativo = 0 AND p.Preco > 0\n                AND p.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n  AND (prod.Tipo = 'N' OR EXISTS (SELECT 1 FROM Prod_Serv_Grade AS g\n      WHERE g.Ordem_Prod_Serv = prod.Ordem AND g.Inativo = 0 AND g.Bloqueado_Venda = 0))",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "ProdutoOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 8,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 8000
+    },
+    "catalogo_variantes": {
+      "sql": "SELECT grade.Ordem AS Variacao_Ordem, grade.Ordem_Cor AS Cor_Ordem, cor.Nome AS Cor_Nome, grade.Ordem_Tamanho AS Tamanho_Ordem, tam.Nome AS Tamanho_Nome\nFROM Prod_Serv_Grade AS grade\nINNER JOIN Prod_Serv AS prod ON prod.Ordem = grade.Ordem_Prod_Serv\nLEFT JOIN Cores AS cor ON cor.Ordem = grade.Ordem_Cor\nLEFT JOIN Tamanhos AS tam ON tam.Ordem = grade.Ordem_Tamanho\nWHERE prod.Ordem = @ProdutoOrdem AND prod.Tipo IN ('N', 'G')\n  AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n  AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n  AND EXISTS (SELECT 1 FROM Prod_Serv_Fotos AS f\n              WHERE f.Ordem_Prod_Serv = prod.Ordem AND DATALENGTH(f.Foto) BETWEEN 1 AND 1000000)\n  AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS p\n              WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Inativo = 0 AND p.Preco > 0\n                AND p.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n  AND (prod.Tipo = 'N' OR EXISTS (SELECT 1 FROM Prod_Serv_Grade AS g\n      WHERE g.Ordem_Prod_Serv = prod.Ordem AND g.Inativo = 0 AND g.Bloqueado_Venda = 0)) AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0",
+      "sql_contagem": "SELECT COUNT(*) FROM Prod_Serv_Grade AS grade\nINNER JOIN Prod_Serv AS prod ON prod.Ordem = grade.Ordem_Prod_Serv\nLEFT JOIN Cores AS cor ON cor.Ordem = grade.Ordem_Cor\nLEFT JOIN Tamanhos AS tam ON tam.Ordem = grade.Ordem_Tamanho\nWHERE prod.Ordem = @ProdutoOrdem AND prod.Tipo IN ('N', 'G')\n  AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n  AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n  AND EXISTS (SELECT 1 FROM Prod_Serv_Fotos AS f\n              WHERE f.Ordem_Prod_Serv = prod.Ordem AND DATALENGTH(f.Foto) BETWEEN 1 AND 1000000)\n  AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS p\n              WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Inativo = 0 AND p.Preco > 0\n                AND p.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n  AND (prod.Tipo = 'N' OR EXISTS (SELECT 1 FROM Prod_Serv_Grade AS g\n      WHERE g.Ordem_Prod_Serv = prod.Ordem AND g.Inativo = 0 AND g.Bloqueado_Venda = 0)) AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "ProdutoOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 49,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 500,
+      "ordenacao": {
+        "colunas": {
+          "ordem": "grade.Ordem"
+        },
+        "padrao": {
+          "coluna": "ordem",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "grade.Ordem"
+      ],
+      "tamanho_pagina_padrao": 24,
+      "tamanho_pagina_max": 48
+    },
+    "catalogo_estoque_variantes": {
+      "sql": "WITH Filial AS (\n    SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilial\n), SaldosGrade AS (\n    SELECT grade.Ordem AS Variacao_Ordem,\n           CASE WHEN esto.Invalido = 1 THEN 1 ELSE 0 END AS Estoque_Invalido,\n           CASE WHEN esto.Invalido = 0 AND esto.Qtde_Estoque_Atual > 0 THEN 1 ELSE 0 END AS Disponivel\n    FROM Prod_Serv AS prod\n    INNER JOIN Prod_Serv_Grade AS grade ON grade.Ordem_Prod_Serv = prod.Ordem\n        AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0\n    CROSS JOIN Filial AS filial\n    LEFT JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem\n        AND esto.Ordem_Filial = filial.Ordem\n        AND esto.Ordem_Cor = grade.Ordem_Cor\n        AND esto.Ordem_Tamanho = grade.Ordem_Tamanho\n        AND esto.Ordem_Edicao = 0\n    WHERE prod.Ordem = @ProdutoOrdem AND prod.Tipo = 'G'\n        AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n), TotaisGrade AS (\n    SELECT MAX(Disponivel) AS Disponivel_Produto,\n           MAX(Estoque_Invalido) AS Estoque_Invalido_Produto\n    FROM SaldosGrade\n)\nSELECT CAST(0 AS int) AS Variacao_Ordem,\n       CASE WHEN esto.Invalido = 1 THEN 1 ELSE 0 END AS Estoque_Invalido,\n       CASE WHEN esto.Invalido = 0 AND esto.Qtde_Estoque_Atual > 0 THEN 1 ELSE 0 END AS Disponivel,\n       CASE WHEN esto.Invalido = 0 AND esto.Qtde_Estoque_Atual > 0 THEN 1 ELSE 0 END AS Disponivel_Produto,\n       CASE WHEN esto.Invalido = 1 THEN 1 ELSE 0 END AS Estoque_Invalido_Produto\nFROM Prod_Serv AS prod\nCROSS JOIN Filial AS filial\nLEFT JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem\n    AND esto.Ordem_Filial = filial.Ordem\n    AND esto.Ordem_Cor = 0 AND esto.Ordem_Tamanho = 0\n    AND esto.Ordem_Edicao = 0\nWHERE prod.Ordem = @ProdutoOrdem AND prod.Tipo = 'N'\n    AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\nUNION ALL\nSELECT grade.Variacao_Ordem, grade.Estoque_Invalido, grade.Disponivel,\n       totais.Disponivel_Produto, totais.Estoque_Invalido_Produto\nFROM SaldosGrade AS grade\nCROSS JOIN TotaisGrade AS totais\nWHERE grade.Variacao_Ordem IN (@Variacao_01, @Variacao_02, @Variacao_03, @Variacao_04, @Variacao_05, @Variacao_06, @Variacao_07, @Variacao_08, @Variacao_09, @Variacao_10, @Variacao_11, @Variacao_12, @Variacao_13, @Variacao_14, @Variacao_15, @Variacao_16, @Variacao_17, @Variacao_18, @Variacao_19, @Variacao_20, @Variacao_21, @Variacao_22, @Variacao_23, @Variacao_24, @Variacao_25, @Variacao_26, @Variacao_27, @Variacao_28, @Variacao_29, @Variacao_30, @Variacao_31, @Variacao_32, @Variacao_33, @Variacao_34, @Variacao_35, @Variacao_36, @Variacao_37, @Variacao_38, @Variacao_39, @Variacao_40, @Variacao_41, @Variacao_42, @Variacao_43, @Variacao_44, @Variacao_45, @Variacao_46, @Variacao_47, @Variacao_48)\n",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "ProdutoOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Variacao_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_09",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_10",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_11",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_12",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_13",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_14",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_15",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_16",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_17",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_18",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_19",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_20",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_21",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_22",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_23",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_24",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_25",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_26",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_27",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_28",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_29",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_30",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_31",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_32",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_33",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_34",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_35",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_36",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_37",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_38",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_39",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_40",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_41",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_42",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_43",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_44",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_45",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_46",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_47",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_48",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 48,
+      "timeout_ms": 2000
+    },
+    "catalogo_fotos": {
+      "sql": "SELECT TOP (9) foto.Ordem AS Imagem_Ordem\nFROM Prod_Serv AS prod\nINNER JOIN Prod_Serv_Fotos AS foto ON foto.Ordem_Prod_Serv = prod.Ordem\nWHERE prod.Ordem = @ProdutoOrdem\n  AND prod.Tipo IN ('N', 'G')\n  AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n  AND DATALENGTH(foto.Foto) BETWEEN 1 AND 1000000\n  AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n  AND EXISTS (\n      SELECT 1 FROM Prod_Serv_Precos AS preco\n      WHERE preco.Ordem_Prod_Serv = prod.Ordem\n        AND preco.Inativo = 0 AND preco.Preco > 0\n        AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04,\n                                         @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08)\n  )\n  AND (prod.Tipo = 'N' OR EXISTS (\n      SELECT 1 FROM Prod_Serv_Grade AS grade\n      WHERE grade.Ordem_Prod_Serv = prod.Ordem\n        AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0\n  ))\nORDER BY foto.Principal DESC, foto.Posicao ASC, foto.Ordem ASC",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "ProdutoOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 9,
+      "timeout_ms": 2000
+    },
+    "catalogo_inicio": {
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nVendas AS (\n    SELECT item.Ordem_Prod_Serv AS Produto_Ordem,\n           SUM(CAST(item.Quantidade AS decimal(19,4))) AS Quantidade\n    FROM Movimento AS mov\n    INNER JOIN Filiais AS filial ON filial.Ordem = mov.Ordem_Filial\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = mov.Ordem\n    WHERE filial.Codigo = @CodigoFilial\n      AND mov.Tipo_Operacao = 'VND'\n      AND mov.Data_Efetivado_Estoque IS NOT NULL\n      AND mov.Efetivado_Estoque = 1\n      AND mov.Desefetivado_Estoque = 0 AND item.Linha_Excluida = 0\n      AND @Inicio >= DATEADD(DAY, -59, CAST(GETDATE() AS date))\n      AND mov.Data_Efetivado_Estoque >= @Inicio\n      AND mov.Data_Efetivado_Estoque <= GETDATE()\n    GROUP BY item.Ordem_Prod_Serv\n)\nSELECT TOP (7) cla.Ordem AS Classe_Ordem, cla.Nome AS Nome,\n       COUNT(DISTINCT prod.Ordem) AS Total_Produtos\nFROM Elegiveis AS prod\nINNER JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Vendas AS venda ON venda.Produto_Ordem = prod.Ordem\nGROUP BY cla.Ordem, cla.Nome\nORDER BY COALESCE(SUM(venda.Quantidade), 0) DESC, cla.Nome ASC, cla.Ordem ASC",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Inicio",
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 7,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 500,
+      "usa_fotos_validadas": true
+    },
+    "catalogo_classes": {
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n)\nSELECT categoria.Ordem AS Categoria_Ordem, categoria.Nome AS Nome, COUNT(DISTINCT prod.Ordem) AS Total_Produtos FROM Elegiveis AS prod INNER JOIN Classes AS categoria ON categoria.Ordem = prod.Ordem_Classe WHERE categoria.Ordem > 0 GROUP BY categoria.Ordem, categoria.Nome",
+      "sql_contagem": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n)\nSELECT COUNT(*) FROM (SELECT categoria.Ordem FROM Elegiveis AS prod INNER JOIN Classes AS categoria ON categoria.Ordem = prod.Ordem_Classe WHERE categoria.Ordem > 0 GROUP BY categoria.Ordem) AS categorias",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 101,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 500,
+      "ordenacao": {
+        "colunas": {
+          "nome": "categoria.Nome",
+          "ordem": "categoria.Ordem"
+        },
+        "padrao": {
+          "coluna": "nome",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "categoria.Ordem"
+      ],
+      "tamanho_pagina_padrao": 50,
+      "tamanho_pagina_max": 100,
+      "usa_fotos_validadas": true
+    },
+    "catalogo_subclasses": {
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n)\nSELECT categoria.Ordem AS Categoria_Ordem, categoria.Nome AS Nome, COUNT(DISTINCT prod.Ordem) AS Total_Produtos FROM Elegiveis AS prod INNER JOIN Subclasses AS categoria ON categoria.Ordem = prod.Ordem_Subclasse WHERE categoria.Ordem > 0 AND (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem) GROUP BY categoria.Ordem, categoria.Nome",
+      "sql_contagem": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n)\nSELECT COUNT(*) FROM (SELECT categoria.Ordem FROM Elegiveis AS prod INNER JOIN Subclasses AS categoria ON categoria.Ordem = prod.Ordem_Subclasse WHERE categoria.Ordem > 0 AND (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem) GROUP BY categoria.Ordem) AS categorias",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "ClasseOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 101,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 500,
+      "ordenacao": {
+        "colunas": {
+          "nome": "categoria.Nome",
+          "ordem": "categoria.Ordem"
+        },
+        "padrao": {
+          "coluna": "nome",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "categoria.Ordem"
+      ],
+      "tamanho_pagina_padrao": 50,
+      "tamanho_pagina_max": 100,
+      "usa_fotos_validadas": true
+    },
+    "catalogo_familias": {
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND EXISTS (\n          SELECT 1 FROM Estoque_Atual AS esto\n          INNER JOIN Filiais AS filial ON filial.Ordem = esto.Ordem_Filial\n          WHERE filial.Codigo = @CodigoFilial\n            AND esto.Ordem_Prod_Serv = prod.Ordem\n            AND esto.Ordem_Edicao = 0 AND esto.Invalido = 0\n            AND esto.Qtde_Estoque_Atual > 0\n            AND ((prod.Tipo = 'N' AND esto.Ordem_Cor = 0 AND esto.Ordem_Tamanho = 0)\n              OR (prod.Tipo = 'G' AND EXISTS (\n                  SELECT 1 FROM Prod_Serv_Grade AS grade\n                  WHERE grade.Ordem_Prod_Serv = prod.Ordem\n                    AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0\n                    AND grade.Ordem_Cor = esto.Ordem_Cor\n                    AND grade.Ordem_Tamanho = esto.Ordem_Tamanho))))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n)\nSELECT categoria.Ordem AS Categoria_Ordem, categoria.Nome AS Nome, COUNT(DISTINCT prod.Ordem) AS Total_Produtos FROM Elegiveis AS prod INNER JOIN Familias AS categoria ON categoria.Ordem = prod.Ordem_Familia WHERE categoria.Ordem > 0 AND (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem) GROUP BY categoria.Ordem, categoria.Nome",
+      "sql_contagem": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND EXISTS (\n          SELECT 1 FROM Estoque_Atual AS esto\n          INNER JOIN Filiais AS filial ON filial.Ordem = esto.Ordem_Filial\n          WHERE filial.Codigo = @CodigoFilial\n            AND esto.Ordem_Prod_Serv = prod.Ordem\n            AND esto.Ordem_Edicao = 0 AND esto.Invalido = 0\n            AND esto.Qtde_Estoque_Atual > 0\n            AND ((prod.Tipo = 'N' AND esto.Ordem_Cor = 0 AND esto.Ordem_Tamanho = 0)\n              OR (prod.Tipo = 'G' AND EXISTS (\n                  SELECT 1 FROM Prod_Serv_Grade AS grade\n                  WHERE grade.Ordem_Prod_Serv = prod.Ordem\n                    AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0\n                    AND grade.Ordem_Cor = esto.Ordem_Cor\n                    AND grade.Ordem_Tamanho = esto.Ordem_Tamanho))))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n)\nSELECT COUNT(*) FROM (SELECT categoria.Ordem FROM Elegiveis AS prod INNER JOIN Familias AS categoria ON categoria.Ordem = prod.Ordem_Familia WHERE categoria.Ordem > 0 AND (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem) GROUP BY categoria.Ordem) AS categorias",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "ClasseOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 101,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 500,
+      "ordenacao": {
+        "colunas": {
+          "nome": "categoria.Nome",
+          "ordem": "categoria.Ordem"
+        },
+        "padrao": {
+          "coluna": "nome",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "categoria.Ordem"
+      ],
+      "tamanho_pagina_padrao": 50,
+      "tamanho_pagina_max": 100,
+      "usa_fotos_validadas": true
+    },
+    "catalogo_cartoes": {
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n)\nSELECT prod.Ordem AS Produto_Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n       prod.Ordem_Classe AS Classe_Ordem, prod.Ordem_Subclasse AS Subclasse_Ordem,\n       prod.Ordem_Familia AS Familia_Ordem,\n       foto.Imagem_Ordem, CASE WHEN preco01.Inativo = 0 AND preco01.Preco > 0 THEN CONVERT(varchar(40), CAST(preco01.Preco AS decimal(19,4))) END AS Preco_01, CASE WHEN preco01.Ordem_Prod_Serv IS NULL THEN 'ausente' WHEN preco01.Inativo = 0 AND preco01.Preco > 0 THEN 'disponivel' ELSE 'nao_disponivel' END AS Situacao_01, CASE WHEN preco02.Inativo = 0 AND preco02.Preco > 0 THEN CONVERT(varchar(40), CAST(preco02.Preco AS decimal(19,4))) END AS Preco_02, CASE WHEN preco02.Ordem_Prod_Serv IS NULL THEN 'ausente' WHEN preco02.Inativo = 0 AND preco02.Preco > 0 THEN 'disponivel' ELSE 'nao_disponivel' END AS Situacao_02, CASE WHEN preco03.Inativo = 0 AND preco03.Preco > 0 THEN CONVERT(varchar(40), CAST(preco03.Preco AS decimal(19,4))) END AS Preco_03, CASE WHEN preco03.Ordem_Prod_Serv IS NULL THEN 'ausente' WHEN preco03.Inativo = 0 AND preco03.Preco > 0 THEN 'disponivel' ELSE 'nao_disponivel' END AS Situacao_03, CASE WHEN preco04.Inativo = 0 AND preco04.Preco > 0 THEN CONVERT(varchar(40), CAST(preco04.Preco AS decimal(19,4))) END AS Preco_04, CASE WHEN preco04.Ordem_Prod_Serv IS NULL THEN 'ausente' WHEN preco04.Inativo = 0 AND preco04.Preco > 0 THEN 'disponivel' ELSE 'nao_disponivel' END AS Situacao_04, CASE WHEN preco05.Inativo = 0 AND preco05.Preco > 0 THEN CONVERT(varchar(40), CAST(preco05.Preco AS decimal(19,4))) END AS Preco_05, CASE WHEN preco05.Ordem_Prod_Serv IS NULL THEN 'ausente' WHEN preco05.Inativo = 0 AND preco05.Preco > 0 THEN 'disponivel' ELSE 'nao_disponivel' END AS Situacao_05, CASE WHEN preco06.Inativo = 0 AND preco06.Preco > 0 THEN CONVERT(varchar(40), CAST(preco06.Preco AS decimal(19,4))) END AS Preco_06, CASE WHEN preco06.Ordem_Prod_Serv IS NULL THEN 'ausente' WHEN preco06.Inativo = 0 AND preco06.Preco > 0 THEN 'disponivel' ELSE 'nao_disponivel' END AS Situacao_06, CASE WHEN preco07.Inativo = 0 AND preco07.Preco > 0 THEN CONVERT(varchar(40), CAST(preco07.Preco AS decimal(19,4))) END AS Preco_07, CASE WHEN preco07.Ordem_Prod_Serv IS NULL THEN 'ausente' WHEN preco07.Inativo = 0 AND preco07.Preco > 0 THEN 'disponivel' ELSE 'nao_disponivel' END AS Situacao_07, CASE WHEN preco08.Inativo = 0 AND preco08.Preco > 0 THEN CONVERT(varchar(40), CAST(preco08.Preco AS decimal(19,4))) END AS Preco_08, CASE WHEN preco08.Ordem_Prod_Serv IS NULL THEN 'ausente' WHEN preco08.Inativo = 0 AND preco08.Preco > 0 THEN 'disponivel' ELSE 'nao_disponivel' END AS Situacao_08\nFROM Elegiveis AS prod\nOUTER APPLY (SELECT TOP (1) p.Preco, p.Inativo, p.Ordem_Prod_Serv FROM Prod_Serv_Precos AS p WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @Tabela_01) AS preco01\nOUTER APPLY (SELECT TOP (1) p.Preco, p.Inativo, p.Ordem_Prod_Serv FROM Prod_Serv_Precos AS p WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @Tabela_02) AS preco02\nOUTER APPLY (SELECT TOP (1) p.Preco, p.Inativo, p.Ordem_Prod_Serv FROM Prod_Serv_Precos AS p WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @Tabela_03) AS preco03\nOUTER APPLY (SELECT TOP (1) p.Preco, p.Inativo, p.Ordem_Prod_Serv FROM Prod_Serv_Precos AS p WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @Tabela_04) AS preco04\nOUTER APPLY (SELECT TOP (1) p.Preco, p.Inativo, p.Ordem_Prod_Serv FROM Prod_Serv_Precos AS p WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @Tabela_05) AS preco05\nOUTER APPLY (SELECT TOP (1) p.Preco, p.Inativo, p.Ordem_Prod_Serv FROM Prod_Serv_Precos AS p WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @Tabela_06) AS preco06\nOUTER APPLY (SELECT TOP (1) p.Preco, p.Inativo, p.Ordem_Prod_Serv FROM Prod_Serv_Precos AS p WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @Tabela_07) AS preco07\nOUTER APPLY (SELECT TOP (1) p.Preco, p.Inativo, p.Ordem_Prod_Serv FROM Prod_Serv_Precos AS p WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @Tabela_08) AS preco08\nINNER JOIN #FotosValidas AS foto ON foto.Produto_Ordem = prod.Ordem\nWHERE prod.Ordem IN (@Produto_01, @Produto_02, @Produto_03, @Produto_04, @Produto_05, @Produto_06, @Produto_07, @Produto_08, @Produto_09, @Produto_10, @Produto_11, @Produto_12, @Produto_13, @Produto_14, @Produto_15, @Produto_16, @Produto_17, @Produto_18, @Produto_19, @Produto_20, @Produto_21, @Produto_22, @Produto_23, @Produto_24, @Produto_25, @Produto_26, @Produto_27, @Produto_28, @Produto_29, @Produto_30, @Produto_31, @Produto_32, @Produto_33, @Produto_34, @Produto_35, @Produto_36, @Produto_37, @Produto_38, @Produto_39, @Produto_40, @Produto_41, @Produto_42, @Produto_43, @Produto_44, @Produto_45, @Produto_46, @Produto_47, @Produto_48)",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_09",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_10",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_11",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_12",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_13",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_14",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_15",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_16",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_17",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_18",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_19",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_20",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_21",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_22",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_23",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_24",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_25",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_26",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_27",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_28",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_29",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_30",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_31",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_32",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_33",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_34",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_35",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_36",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_37",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_38",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_39",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_40",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_41",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_42",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_43",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_44",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_45",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_46",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_47",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_48",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 48,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 500,
+      "usa_fotos_validadas": true
+    },
+    "catalogo_estoque_produtos": {
+      "sql": "WITH Pedidos AS (SELECT DISTINCT v.Produto_Ordem FROM (VALUES (@Produto_01), (@Produto_02), (@Produto_03), (@Produto_04), (@Produto_05), (@Produto_06), (@Produto_07), (@Produto_08), (@Produto_09), (@Produto_10), (@Produto_11), (@Produto_12), (@Produto_13), (@Produto_14), (@Produto_15), (@Produto_16), (@Produto_17), (@Produto_18), (@Produto_19), (@Produto_20), (@Produto_21), (@Produto_22), (@Produto_23), (@Produto_24), (@Produto_25), (@Produto_26), (@Produto_27), (@Produto_28), (@Produto_29), (@Produto_30), (@Produto_31), (@Produto_32), (@Produto_33), (@Produto_34), (@Produto_35), (@Produto_36), (@Produto_37), (@Produto_38), (@Produto_39), (@Produto_40), (@Produto_41), (@Produto_42), (@Produto_43), (@Produto_44), (@Produto_45), (@Produto_46), (@Produto_47), (@Produto_48)) AS v(Produto_Ordem) WHERE v.Produto_Ordem IS NOT NULL)\nSELECT prod.Ordem AS Produto_Ordem,\n       CASE WHEN EXISTS (\n         SELECT 1 FROM Estoque_Atual AS esto\n         WHERE esto.Ordem_Prod_Serv = prod.Ordem AND esto.Ordem_Filial = filial.Ordem\n           AND esto.Ordem_Edicao = 0 AND esto.Invalido = 0 AND esto.Qtde_Estoque_Atual > 0\n           AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) OR esto.Ordem_Cor IN (@CorOrdem_01, @CorOrdem_02, @CorOrdem_03, @CorOrdem_04))\n           AND ((@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL) OR esto.Ordem_Tamanho IN (@TamanhoOrdem_01, @TamanhoOrdem_02, @TamanhoOrdem_03, @TamanhoOrdem_04))\n           AND ((prod.Tipo = 'N' AND esto.Ordem_Cor = 0 AND esto.Ordem_Tamanho = 0)\n             OR (prod.Tipo = 'G' AND EXISTS (\n               SELECT 1 FROM Prod_Serv_Grade AS grade\n               WHERE grade.Ordem_Prod_Serv = prod.Ordem AND grade.Inativo = 0\n                 AND grade.Bloqueado_Venda = 0 AND grade.Ordem_Cor = esto.Ordem_Cor\n                 AND grade.Ordem_Tamanho = esto.Ordem_Tamanho)))) THEN 1 ELSE 0 END AS Disponivel,\n       CASE WHEN EXISTS (\n         SELECT 1 FROM Estoque_Atual AS esto\n         WHERE esto.Ordem_Prod_Serv = prod.Ordem AND esto.Ordem_Filial = filial.Ordem\n           AND esto.Ordem_Edicao = 0 AND esto.Invalido = 1\n           AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) OR esto.Ordem_Cor IN (@CorOrdem_01, @CorOrdem_02, @CorOrdem_03, @CorOrdem_04))\n           AND ((@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL) OR esto.Ordem_Tamanho IN (@TamanhoOrdem_01, @TamanhoOrdem_02, @TamanhoOrdem_03, @TamanhoOrdem_04))) THEN 1 ELSE 0 END AS Estoque_Invalido\nFROM Pedidos AS pedido\nINNER JOIN Prod_Serv AS prod ON prod.Ordem = pedido.Produto_Ordem AND prod.Tipo IN ('N', 'G')\nINNER JOIN Filiais AS filial ON filial.Codigo = @CodigoFilial",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Produto_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_09",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_10",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_11",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_12",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_13",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_14",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_15",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_16",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_17",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_18",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_19",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_20",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_21",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_22",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_23",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_24",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_25",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_26",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_27",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_28",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_29",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_30",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_31",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_32",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_33",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_34",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_35",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_36",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_37",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_38",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_39",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_40",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_41",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_42",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_43",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_44",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_45",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_46",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_47",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_48",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 48,
+      "timeout_ms": 2000
+    },
+    "catalogo_relacionados": {
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nMovimentosOrigem AS (\n    SELECT DISTINCT mov.Ordem\n    FROM Movimento AS mov\n    INNER JOIN Filiais AS filial ON filial.Ordem = mov.Ordem_Filial\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = mov.Ordem\n    INNER JOIN Elegiveis AS fonte ON fonte.Ordem = item.Ordem_Prod_Serv\n    WHERE filial.Codigo = @CodigoFilial AND item.Ordem_Prod_Serv = @ProdutoOrdem\n      AND mov.Tipo_Operacao = 'VND' AND mov.Data_Efetivado_Estoque IS NOT NULL\n      AND mov.Efetivado_Estoque = 1\n      AND mov.Desefetivado_Estoque = 0 AND item.Linha_Excluida = 0\n      AND @Inicio >= DATEADD(DAY, -59, CAST(GETDATE() AS date))\n      AND mov.Data_Efetivado_Estoque >= @Inicio\n      AND mov.Data_Efetivado_Estoque <= GETDATE()\n), Recomendacoes AS (\n    SELECT prod.Ordem AS Produto_Ordem, prod.Nome AS Nome,\n           COUNT(DISTINCT item.Ordem_Movimento) AS Vendas_Em_Comum\n    FROM MovimentosOrigem AS origem\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = origem.Ordem\n    INNER JOIN Elegiveis AS prod ON prod.Ordem = item.Ordem_Prod_Serv\n    WHERE prod.Ordem <> @ProdutoOrdem AND item.Linha_Excluida = 0\n    GROUP BY prod.Ordem, prod.Nome\n)\nSELECT TOP (25) resultado.Origem_Valida, resultado.Produto_Ordem,\n       resultado.Nome, resultado.Vendas_Em_Comum\nFROM (\n    SELECT CAST(1 AS int) AS Origem_Valida, fonte.Ordem AS Produto_Ordem,\n           fonte.Nome AS Nome, CAST(0 AS int) AS Vendas_Em_Comum\n    FROM Elegiveis AS fonte WHERE fonte.Ordem = @ProdutoOrdem\n    UNION ALL\n    SELECT CAST(0 AS int), rec.Produto_Ordem, rec.Nome, rec.Vendas_Em_Comum\n    FROM Recomendacoes AS rec\n) AS resultado\nORDER BY resultado.Origem_Valida DESC, resultado.Vendas_Em_Comum DESC,\n         resultado.Nome ASC, resultado.Produto_Ordem ASC",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "ProdutoOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Inicio",
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 25,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 500,
+      "usa_fotos_validadas": true
+    },
+    "catalogo_produtos_ids": {
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nSelecionados AS (SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo, prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia FROM Elegiveis AS prod\nLEFT JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse\nLEFT JOIN Familias AS fam ON fam.Ordem = prod.Ordem_Familia\nWHERE (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem)\n      AND (@SubclasseOrdem IS NULL OR prod.Ordem_Subclasse = @SubclasseOrdem)\n      AND (@FamiliaOrdem IS NULL OR prod.Ordem_Familia = @FamiliaOrdem)\n      AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) AND (@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL)\n           OR (prod.Tipo = 'G' AND EXISTS (\n               SELECT 1 FROM Prod_Serv_Grade AS variante\n               WHERE variante.Ordem_Prod_Serv = prod.Ordem\n                 AND variante.Inativo = 0 AND variante.Bloqueado_Venda = 0\n                 AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) OR variante.Ordem_Cor IN (@CorOrdem_01, @CorOrdem_02, @CorOrdem_03, @CorOrdem_04))\n                 AND ((@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL) OR variante.Ordem_Tamanho IN (@TamanhoOrdem_01, @TamanhoOrdem_02, @TamanhoOrdem_03, @TamanhoOrdem_04)))))\n      AND (@Busca IS NULL OR CONVERT(varchar(60), prod.Codigo) LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR prod.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR cla.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR sub.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR fam.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%')\n      ),\nVendas AS (\n    SELECT item.Ordem_Prod_Serv AS Produto_Ordem,\n           SUM(CAST(item.Quantidade AS decimal(19,4))) AS Quantidade\n    FROM Movimento AS mov\n    INNER JOIN Filiais AS filial ON filial.Ordem = mov.Ordem_Filial\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = mov.Ordem\n    WHERE filial.Codigo = @CodigoFilial\n      AND mov.Tipo_Operacao = 'VND'\n      AND mov.Data_Efetivado_Estoque IS NOT NULL\n      AND mov.Efetivado_Estoque = 1\n      AND mov.Desefetivado_Estoque = 0 AND item.Linha_Excluida = 0\n      AND @Inicio >= DATEADD(DAY, -59, CAST(GETDATE() AS date))\n      AND mov.Data_Efetivado_Estoque >= @Inicio\n      AND mov.Data_Efetivado_Estoque <= GETDATE()\n    GROUP BY item.Ordem_Prod_Serv\n)\nSELECT prod.Ordem AS Produto_Ordem, prod.Nome AS Nome,\n       COALESCE(CAST(escolhido.Preco AS decimal(19,4)), CAST(999999999999999 AS decimal(19,4))) AS Preco_Asc,\n       CASE WHEN escolhido.Preco IS NULL THEN CAST(999999999999999 AS decimal(19,4))\n            ELSE -CAST(escolhido.Preco AS decimal(19,4)) END AS Preco_Desc,\n       COALESCE(venda.Quantidade, 0) AS Quantidade_Vendida\nFROM Selecionados AS prod\nOUTER APPLY (SELECT TOP (1) p.Preco FROM Prod_Serv_Precos AS p\n             WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @TabelaEscolhida\n               AND p.Inativo = 0 AND p.Preco > 0) AS escolhido\nLEFT JOIN Vendas AS venda ON venda.Produto_Ordem = prod.Ordem",
+      "sql_contagem": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n)\nSELECT COUNT(*) FROM Elegiveis AS prod\nLEFT JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse\nLEFT JOIN Familias AS fam ON fam.Ordem = prod.Ordem_Familia\nWHERE (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem)\n      AND (@SubclasseOrdem IS NULL OR prod.Ordem_Subclasse = @SubclasseOrdem)\n      AND (@FamiliaOrdem IS NULL OR prod.Ordem_Familia = @FamiliaOrdem)\n      AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) AND (@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL)\n           OR (prod.Tipo = 'G' AND EXISTS (\n               SELECT 1 FROM Prod_Serv_Grade AS variante\n               WHERE variante.Ordem_Prod_Serv = prod.Ordem\n                 AND variante.Inativo = 0 AND variante.Bloqueado_Venda = 0\n                 AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) OR variante.Ordem_Cor IN (@CorOrdem_01, @CorOrdem_02, @CorOrdem_03, @CorOrdem_04))\n                 AND ((@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL) OR variante.Ordem_Tamanho IN (@TamanhoOrdem_01, @TamanhoOrdem_02, @TamanhoOrdem_03, @TamanhoOrdem_04)))))\n      AND (@Busca IS NULL OR CONVERT(varchar(60), prod.Codigo) LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR prod.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR cla.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR sub.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR fam.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%')\n      ",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Inicio",
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        {
+          "nome": "TabelaEscolhida",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "ClasseOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "SubclasseOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "FamiliaOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Busca",
+          "tipo": "texto",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 49,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 500,
+      "ordenacao": {
+        "colunas": {
+          "nome": "prod.Nome",
+          "ordem": "prod.Ordem",
+          "preco_asc": "Preco_Asc",
+          "preco_desc": "Preco_Desc",
+          "mais_vendidos": "Quantidade_Vendida",
+          "em_alta": "Quantidade_Vendida"
+        },
+        "padrao": {
+          "coluna": "nome",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "prod.Ordem"
+      ],
+      "tamanho_pagina_padrao": 24,
+      "tamanho_pagina_max": 48,
+      "usa_fotos_validadas": true
+    },
+    "catalogo_produtos_ids_sem_vendas": {
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nSelecionados AS (SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo, prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia FROM Elegiveis AS prod\nLEFT JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse\nLEFT JOIN Familias AS fam ON fam.Ordem = prod.Ordem_Familia\nWHERE (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem)\n      AND (@SubclasseOrdem IS NULL OR prod.Ordem_Subclasse = @SubclasseOrdem)\n      AND (@FamiliaOrdem IS NULL OR prod.Ordem_Familia = @FamiliaOrdem)\n      AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) AND (@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL)\n           OR (prod.Tipo = 'G' AND EXISTS (\n               SELECT 1 FROM Prod_Serv_Grade AS variante\n               WHERE variante.Ordem_Prod_Serv = prod.Ordem\n                 AND variante.Inativo = 0 AND variante.Bloqueado_Venda = 0\n                 AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) OR variante.Ordem_Cor IN (@CorOrdem_01, @CorOrdem_02, @CorOrdem_03, @CorOrdem_04))\n                 AND ((@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL) OR variante.Ordem_Tamanho IN (@TamanhoOrdem_01, @TamanhoOrdem_02, @TamanhoOrdem_03, @TamanhoOrdem_04)))))\n      AND (@Busca IS NULL OR CONVERT(varchar(60), prod.Codigo) LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR prod.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR cla.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR sub.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR fam.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%')\n      )\nSELECT prod.Ordem AS Produto_Ordem, prod.Nome AS Nome,\n       COALESCE(CAST(escolhido.Preco AS decimal(19,4)), CAST(999999999999999 AS decimal(19,4))) AS Preco_Asc,\n       CASE WHEN escolhido.Preco IS NULL THEN CAST(999999999999999 AS decimal(19,4))\n            ELSE -CAST(escolhido.Preco AS decimal(19,4)) END AS Preco_Desc,\n       CAST(0 AS decimal(19,4)) AS Quantidade_Vendida\nFROM Selecionados AS prod\nOUTER APPLY (SELECT TOP (1) p.Preco FROM Prod_Serv_Precos AS p\n             WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @TabelaEscolhida\n               AND p.Inativo = 0 AND p.Preco > 0) AS escolhido",
+      "sql_contagem": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n)\nSELECT COUNT(*) FROM Elegiveis AS prod\nLEFT JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse\nLEFT JOIN Familias AS fam ON fam.Ordem = prod.Ordem_Familia\nWHERE (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem)\n      AND (@SubclasseOrdem IS NULL OR prod.Ordem_Subclasse = @SubclasseOrdem)\n      AND (@FamiliaOrdem IS NULL OR prod.Ordem_Familia = @FamiliaOrdem)\n      AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) AND (@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL)\n           OR (prod.Tipo = 'G' AND EXISTS (\n               SELECT 1 FROM Prod_Serv_Grade AS variante\n               WHERE variante.Ordem_Prod_Serv = prod.Ordem\n                 AND variante.Inativo = 0 AND variante.Bloqueado_Venda = 0\n                 AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) OR variante.Ordem_Cor IN (@CorOrdem_01, @CorOrdem_02, @CorOrdem_03, @CorOrdem_04))\n                 AND ((@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL) OR variante.Ordem_Tamanho IN (@TamanhoOrdem_01, @TamanhoOrdem_02, @TamanhoOrdem_03, @TamanhoOrdem_04)))))\n      AND (@Busca IS NULL OR CONVERT(varchar(60), prod.Codigo) LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR prod.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR cla.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR sub.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR fam.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%')\n      ",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TabelaEscolhida",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "ClasseOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "SubclasseOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "FamiliaOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Busca",
+          "tipo": "texto",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "CorOrdem_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "TamanhoOrdem_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 49,
+      "timeout_ms": 2000,
+      "max_caracteres_texto": 500,
+      "ordenacao": {
+        "colunas": {
+          "nome": "prod.Nome",
+          "ordem": "prod.Ordem",
+          "preco_asc": "Preco_Asc",
+          "preco_desc": "Preco_Desc",
+          "mais_vendidos": "Quantidade_Vendida",
+          "em_alta": "Quantidade_Vendida"
+        },
+        "padrao": {
+          "coluna": "nome",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "prod.Ordem"
+      ],
+      "tamanho_pagina_padrao": 24,
+      "tamanho_pagina_max": 48,
+      "usa_fotos_validadas": true
+    },
+    "catalogo_indice_fotos": {
+      "sql": "SELECT prod.Ordem AS Produto_Ordem, foto.Ordem AS Imagem_Ordem,\n       DATALENGTH(foto.Foto) AS Foto_Caracteres, foto.Foto AS Foto_Base64\nFROM Prod_Serv AS prod\nINNER JOIN Prod_Serv_Fotos AS foto ON foto.Ordem_Prod_Serv = prod.Ordem\nWHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n  AND DATALENGTH(foto.Foto) BETWEEN 1 AND 1000000\n  AND EXISTS (SELECT 1 FROM Filiais AS filial WHERE filial.Codigo = @CodigoFilial)\n  AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n              WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                AND preco.Inativo = 0 AND preco.Preco > 0\n                AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03,\n                    @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n  AND (prod.Tipo = 'N' OR EXISTS (SELECT 1 FROM Prod_Serv_Grade AS grade\n      WHERE grade.Ordem_Prod_Serv = prod.Ordem\n        AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\nORDER BY prod.Ordem, foto.Principal DESC, foto.Posicao ASC, foto.Ordem ASC",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 50000,
+      "timeout_ms": 5000,
+      "max_caracteres_texto": 1000000,
+      "uso_interno": true
+    },
+    "catalogo_fotos_meta_lote": {
+      "sql": "WITH Lote AS (\n  SELECT DISTINCT v.Ordem\n  FROM (VALUES (@Produto_01), (@Produto_02), (@Produto_03), (@Produto_04), (@Produto_05), (@Produto_06), (@Produto_07), (@Produto_08), (@Produto_09), (@Produto_10), (@Produto_11), (@Produto_12), (@Produto_13), (@Produto_14), (@Produto_15), (@Produto_16), (@Produto_17), (@Produto_18), (@Produto_19), (@Produto_20), (@Produto_21), (@Produto_22), (@Produto_23), (@Produto_24), (@Produto_25), (@Produto_26), (@Produto_27), (@Produto_28), (@Produto_29), (@Produto_30), (@Produto_31), (@Produto_32), (@Produto_33), (@Produto_34), (@Produto_35), (@Produto_36), (@Produto_37), (@Produto_38), (@Produto_39), (@Produto_40), (@Produto_41), (@Produto_42), (@Produto_43), (@Produto_44), (@Produto_45), (@Produto_46), (@Produto_47), (@Produto_48)) AS v(Ordem)\n  WHERE v.Ordem IS NOT NULL\n),\nElegiveis AS (\n  SELECT prod.Ordem\n  FROM Lote\n  INNER JOIN Prod_Serv AS prod ON prod.Ordem = Lote.Ordem\n  WHERE prod.Tipo IN ('N', 'G')\n    AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n    AND EXISTS (\n      SELECT 1 FROM Prod_Serv_Precos AS preco\n      WHERE preco.Ordem_Prod_Serv = prod.Ordem\n        AND preco.Inativo = 0 AND preco.Preco > 0\n        AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08)\n    )\n    AND (prod.Tipo = 'N' OR EXISTS (\n      SELECT 1 FROM Prod_Serv_Grade AS grade\n      WHERE grade.Ordem_Prod_Serv = prod.Ordem\n        AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0\n    ))\n),\nRanque AS (\n  SELECT elegivel.Ordem AS Produto_Ordem, foto.Ordem AS Imagem_Ordem,\n         DATALENGTH(foto.Foto) AS Foto_Caracteres,\n         CASE WHEN LEFT(foto.Foto, 11) = 'iVBORw0KGgo' THEN 'png'\n              WHEN LEFT(foto.Foto, 4) = '/9j/' THEN 'jpeg'\n              ELSE 'desconhecido' END AS Formato_Provavel,\n         ROW_NUMBER() OVER (PARTITION BY elegivel.Ordem\n                            ORDER BY foto.Principal DESC, foto.Posicao ASC, foto.Ordem ASC) AS Posicao_Ranque\n  FROM Elegiveis AS elegivel\n  INNER JOIN Prod_Serv_Fotos AS foto ON foto.Ordem_Prod_Serv = elegivel.Ordem\n  WHERE DATALENGTH(foto.Foto) BETWEEN 1 AND 1000000\n)\nSELECT Produto_Ordem, Imagem_Ordem, Foto_Caracteres, Formato_Provavel\nFROM Ranque\nWHERE Posicao_Ranque <= 9\n  AND EXISTS (SELECT 1 FROM Filiais AS filial WHERE filial.Codigo = @CodigoFilial)\nORDER BY Produto_Ordem, Posicao_Ranque",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_09",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_10",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_11",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_12",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_13",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_14",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_15",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_16",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_17",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_18",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_19",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_20",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_21",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_22",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_23",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_24",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_25",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_26",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_27",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_28",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_29",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_30",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_31",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_32",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_33",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_34",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_35",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_36",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_37",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_38",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_39",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_40",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_41",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_42",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_43",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_44",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_45",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_46",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_47",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_48",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 432,
+      "timeout_ms": 3000
+    },
+    "catalogo_opcoes_variacao": {
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nRecorte AS (SELECT prod.Ordem FROM Elegiveis AS prod\nLEFT JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse\nLEFT JOIN Familias AS fam ON fam.Ordem = prod.Ordem_Familia\nWHERE (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem)\n      AND (@SubclasseOrdem IS NULL OR prod.Ordem_Subclasse = @SubclasseOrdem)\n      AND (@FamiliaOrdem IS NULL OR prod.Ordem_Familia = @FamiliaOrdem)\n      AND (@Busca IS NULL OR CONVERT(varchar(60), prod.Codigo) LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR prod.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR cla.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR sub.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR fam.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%')\n      AND prod.Tipo = 'G'\n),\nCombinacoes AS (\n    SELECT DISTINCT variante.Ordem_Cor, variante.Ordem_Tamanho\n    FROM Recorte AS prod\n    INNER JOIN Prod_Serv_Grade AS variante ON variante.Ordem_Prod_Serv = prod.Ordem\n    WHERE variante.Inativo = 0 AND variante.Bloqueado_Venda = 0\n)\nSELECT CAST('cor' AS varchar(10)) AS Dimensao, cor.Ordem AS Ordem, cor.Nome AS Nome\nFROM Cores AS cor\nWHERE cor.Ordem > 0 AND cor.Nome IS NOT NULL AND cor.Nome <> ''\n  AND NOT (cor.Ordem = 999 AND UPPER(LTRIM(RTRIM(cor.Nome))) = 'SEM COR')\n  AND EXISTS (SELECT 1 FROM Combinacoes AS combinacao WHERE combinacao.Ordem_Cor = cor.Ordem)\nUNION ALL\nSELECT CAST('tamanho' AS varchar(10)) AS Dimensao, tam.Ordem AS Ordem, tam.Nome AS Nome\nFROM Tamanhos AS tam\nWHERE tam.Ordem > 0 AND tam.Nome IS NOT NULL AND tam.Nome <> ''\n  AND NOT (tam.Ordem = 999 AND UPPER(LTRIM(RTRIM(tam.Nome))) = 'SEM TAMANHO')\n  AND EXISTS (SELECT 1 FROM Combinacoes AS combinacao WHERE combinacao.Ordem_Tamanho = tam.Ordem)\nORDER BY Dimensao, Nome, Ordem",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "ClasseOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "SubclasseOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "FamiliaOrdem",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Busca",
+          "tipo": "texto",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 2000,
+      "timeout_ms": 3000,
+      "max_caracteres_texto": 500,
+      "usa_fotos_validadas": true
     }
   }
 }
