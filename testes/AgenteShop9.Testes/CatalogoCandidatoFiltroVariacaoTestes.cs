@@ -29,8 +29,8 @@ public class CatalogoCandidatoFiltroVariacaoTestes
     {
         var versao = Candidato().VersaoCatalogo;
         Assert.Equal(35, versao);
-        // A v35 deste candidato ja foi assinada e publicada (catalogo.json).
-        Assert.Equal(Catalogo.Analisar(Fixtures.CatalogoRealBytes).VersaoCatalogo, versao);
+        // A v35 deste candidato ja foi assinada e publicada; catalogo.json e a mesma versao ou posterior.
+        Assert.True(versao <= Catalogo.Analisar(Fixtures.CatalogoRealBytes).VersaoCatalogo);
         Assert.True(versao > Anterior().VersaoCatalogo);
         Assert.True(versao > Ler("catalogo.candidato-publico.json").VersaoCatalogo);
         Assert.True(versao > Ler("catalogo.candidato-configuracao.json").VersaoCatalogo);

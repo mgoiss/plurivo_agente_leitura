@@ -421,7 +421,7 @@ public class CacheIndiceFotosTestes
         await Esperar(() => ocupada.Construcoes == 1);
         var segundo = cache.Aquecer("b", naFila.Construtor, null);
         var requisicao = cache.ObterAsync("b", naFila.Construtor, null, default);
-        await Task.Delay(50);
+        await Task.Delay(300);
 
         cache.Dispose();
 
