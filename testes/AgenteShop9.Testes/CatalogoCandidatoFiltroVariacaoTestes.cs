@@ -25,12 +25,12 @@ public class CatalogoCandidatoFiltroVariacaoTestes
     private static JsonElement Inteiro(long valor) => JsonSerializer.SerializeToElement(valor);
 
     [Fact]
-    public void Versao_e_a_maior_dos_catalogos_do_repositorio()
+    public void Versao_e_a_publicada_e_maior_que_os_candidatos_anteriores()
     {
         var versao = Candidato().VersaoCatalogo;
         Assert.Equal(35, versao);
-        // A v34 deste candidato ja foi assinada e publicada (catalogo.json); a v35 a sucede.
-        Assert.Equal(Catalogo.Analisar(Fixtures.CatalogoRealBytes).VersaoCatalogo + 1, versao);
+        // A v35 deste candidato ja foi assinada e publicada (catalogo.json).
+        Assert.Equal(Catalogo.Analisar(Fixtures.CatalogoRealBytes).VersaoCatalogo, versao);
         Assert.True(versao > Anterior().VersaoCatalogo);
         Assert.True(versao > Ler("catalogo.candidato-publico.json").VersaoCatalogo);
         Assert.True(versao > Ler("catalogo.candidato-configuracao.json").VersaoCatalogo);
