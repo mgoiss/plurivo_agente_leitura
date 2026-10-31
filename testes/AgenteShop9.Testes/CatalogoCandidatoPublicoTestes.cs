@@ -15,7 +15,8 @@ public class CatalogoCandidatoPublicoTestes
         var candidato = Candidato();
         var emUso = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
         Assert.Equal(32, candidato.VersaoCatalogo);
-        Assert.All(emUso.Operacoes!.Keys, nome => Assert.Contains(nome, candidato.Operacoes!.Keys));
+        // Candidato superado: o catalogo em uso so acrescenta operacoes, nunca perde as dele.
+        Assert.All(candidato.Operacoes!.Keys, nome => Assert.Contains(nome, emUso.Operacoes!.Keys));
         var capacidade = candidato.Operacoes!["catalogo_ocultacoes_capacidade"];
         Assert.Equal("SELECT CAST(32 AS int) AS Versao_Catalogo", capacidade.Sql);
         Assert.Empty(capacidade.Parametros);

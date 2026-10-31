@@ -22,11 +22,10 @@ public class CatalogoCandidatoAceleracaoImagensTestes
     private static Operacao Meta() => Candidato().Operacoes![Nome];
 
     [Fact]
-    public void Versao_e_maior_que_a_do_catalogo_em_uso_e_dos_outros_candidatos()
+    public void Versao_e_maior_que_a_do_candidato_publico()
     {
         var versao = Candidato().VersaoCatalogo;
         Assert.Equal(33, versao);
-        Assert.True(versao > Catalogo.Analisar(Fixtures.CatalogoRealBytes).VersaoCatalogo);
         Assert.True(versao > Publico().VersaoCatalogo);
     }
 

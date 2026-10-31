@@ -45,8 +45,9 @@ public class CatalogoCandidatoConfiguracaoTestes
         var candidato = Catalogo.Analisar(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "fixtures", "catalogo.candidato-configuracao.json")));
         var emUso = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
         Assert.True(candidato.VersaoCatalogo >= 27);
-        // Depois de publicar, o catalogo em uso alcanca (ou passa) o candidato: o que importa e as operacoes serem as mesmas.
-        Assert.Equal(emUso.Operacoes!.Keys.OrderBy(n => n), candidato.Operacoes!.Keys.OrderBy(n => n));
+        // Depois de publicar, o catalogo em uso alcanca (ou passa) o candidato: toda operacao do
+        // candidato continua no catalogo em uso (versoes novas so acrescentam operacoes).
+        Assert.All(candidato.Operacoes!.Keys, nome => Assert.Contains(nome, emUso.Operacoes!.Keys));
     }
 
     [Fact]
