@@ -15,6 +15,13 @@ public interface IExecutorOperacao
     Task<MensagemResultado> ExecutarAsync(JsonElement pedido, CancellationToken ct);
 }
 
+/// <summary>Aquecimento do indice de fotos ao iniciar o agente (issue #119).</summary>
+public interface IAquecedorIndiceFotos
+{
+    /// <summary>Dispara a construcao do indice em segundo plano; nao bloqueia nem lanca.</summary>
+    void Aquecer();
+}
+
 /// <summary>
 /// Executa uma operacao do catalogo ACEITO contra o SQL Server local.
 ///
@@ -29,16 +36,20 @@ public interface IExecutorOperacao
 public sealed class ExecutorOperacao(
     ILogger<ExecutorOperacao> log,
     ConfiguracaoAgente config,
-    GestorCatalogo gestorCatalogo) : IExecutorOperacao
+    GestorCatalogo gestorCatalogo) : IExecutorOperacao, IAquecedorIndiceFotos, IDisposable
 {
+    private const string OperacaoIndiceFotos = "catalogo_indice_fotos";
+    private const string OperacaoImpressaoFotos = "catalogo_indice_fotos_impressao";
+
     private sealed class ResultadoGrandeException : Exception;
     // Homologacao #109: 1.252 fotos elegiveis exigiram 105 MiB e ultrapassaram
     // os limites iniciais. O prazo HTTP ainda e de 10 s; preparar o indice
     // pode concluir depois dele, para medir as consultas com cache aquecido.
     private static readonly TimeSpan TempoMaximoIndiceFotos = TimeSpan.FromSeconds(12);
-    private readonly SemaphoreSlim _travaIndiceFotos = new(1, 1);
-    private readonly Dictionary<string, (IReadOnlyDictionary<int, int> Fotos, DateTimeOffset Expira)>
-        _indicesFotos = new();
+    private readonly CacheIndiceFotos _cacheFotos = new(log);
+    private readonly EscoposIndiceFotos _escoposFotos = new(Path.Combine(
+        Path.GetDirectoryName(Path.GetFullPath(config.CatalogoCaminho)) ?? ".",
+        "dados", "escopos_indice_fotos.json"));
 
     public async Task<MensagemResultado> ExecutarAsync(JsonElement pedido, CancellationToken ct)
     {
@@ -78,7 +89,7 @@ public sealed class ExecutorOperacao(
             if (op.UsaFotosValidadas)
             {
                 etapa = "indice_fotos";
-                var fotos = await ObterIndiceFotos(catalogo, recebidos, conexao, ct);
+                var fotos = await ObterIndiceFotos(catalogo, recebidos, ct);
                 etapa = "tabela_fotos";
                 await PrepararTabelaFotos(conexao, fotos, ct);
             }
@@ -150,60 +161,119 @@ public sealed class ExecutorOperacao(
 
     private async Task<IReadOnlyDictionary<int, int>> ObterIndiceFotos(
         Catalogo catalogo, IReadOnlyDictionary<string, JsonElement> recebidos,
-        SqlConnection conexao, CancellationToken ct)
+        CancellationToken ct)
     {
         var parametros = IndiceFotosPublicas.ParametrosEscopo(recebidos);
         var chaveEscopo = IndiceFotosPublicas.ChaveEscopo(catalogo.VersaoCatalogo, parametros);
+        var (construtor, impressao) = CriarAcessoIndiceFotos(catalogo, parametros);
+        _escoposFotos.Registrar(parametros);
+        return await _cacheFotos.ObterAsync(chaveEscopo, construtor, impressao, ct);
+    }
 
-        await _travaIndiceFotos.WaitAsync(ct);
+    /// <summary>
+    /// Aquecimento ao iniciar (issue #119): constroi em segundo plano o indice
+    /// dos escopos ja vistos em requisicoes anteriores (guardados em disco).
+    /// Escopo de um servidor novo, ainda nunca visto, so e conhecido na primeira
+    /// requisicao — esta paga a carga completa uma vez. Nunca bloqueia nem lanca.
+    /// </summary>
+    public void Aquecer()
+    {
         try
         {
-            if (_indicesFotos.TryGetValue(chaveEscopo, out var existente)
-                && DateTimeOffset.UtcNow < existente.Expira)
-                return existente.Fotos;
-            if (catalogo.Operacoes is null
-                || !catalogo.Operacoes.TryGetValue("catalogo_indice_fotos", out var operacao)
-                || !operacao.UsoInterno)
-                throw new InvalidOperationException("Catalogo publico sem indice de fotos assinado.");
-            if (ValidadorParametros.Validar(operacao, parametros) is not null)
-                throw new ArgumentException("Escopo do indice de fotos invalido.");
-
-            var acumulador = new AcumuladorIndiceFotosPublicas();
-            var relogioIndice = Stopwatch.StartNew();
-            await using (var comando = MontadorComando.Montar(
-                operacao, parametros, conexao: conexao))
-            await using (var leitor = await comando.ExecuteReaderAsync(
-                CommandBehavior.SequentialAccess, ct))
+            var catalogo = gestorCatalogo.CatalogoAceito;
+            if (catalogo?.Operacoes is null
+                || !catalogo.Operacoes.TryGetValue(OperacaoIndiceFotos, out var op) || !op.UsoInterno)
+                return;
+            foreach (var parametros in _escoposFotos.Listar())
             {
-                while (await leitor.ReadAsync(ct))
+                try
                 {
-                    if (relogioIndice.Elapsed > TempoMaximoIndiceFotos)
-                        throw new IndiceFotosTempoException(
-                            acumulador.LinhasLidas, acumulador.CaracteresLidos);
-                    var produtoOrdem = leitor.GetInt32(0);
-                    var imagemOrdem = leitor.GetInt32(1);
-                    var tamanho = Convert.ToInt64(leitor.GetValue(2));
-                    var texto = acumulador.PrecisaLerFoto(produtoOrdem)
-                        ? leitor.GetString(3) : null;
-                    acumulador.Incluir(produtoOrdem, imagemOrdem, tamanho,
-                                      texto, IndiceFotosPublicas.FotoValida);
+                    var chave = IndiceFotosPublicas.ChaveEscopo(catalogo.VersaoCatalogo, parametros);
+                    var (construtor, impressao) = CriarAcessoIndiceFotos(catalogo, parametros);
+                    _ = _cacheFotos.Aquecer(chave, construtor, impressao);
+                }
+                catch (ArgumentException)
+                {
+                    log.LogWarning("Escopo guardado do indice de fotos invalido; ignorado no aquecimento.");
                 }
             }
-            if (relogioIndice.Elapsed > TempoMaximoIndiceFotos)
-                throw new IndiceFotosTempoException(
-                    acumulador.LinhasLidas, acumulador.CaracteresLidos);
-            _indicesFotos[chaveEscopo] = (acumulador.Fotos, DateTimeOffset.UtcNow.AddSeconds(300));
-            if (_indicesFotos.Count > 16)
-            {
-                var antiga = _indicesFotos.MinBy(par => par.Value.Expira).Key;
-                _indicesFotos.Remove(antiga);
-            }
-            return acumulador.Fotos;
         }
-        finally
+        catch (Exception ex)
         {
-            _travaIndiceFotos.Release();
+            log.LogWarning("Aquecimento do indice de fotos nao iniciou ({Tipo}).", ex.GetType().Name);
         }
+    }
+
+    public void Dispose() => _cacheFotos.Dispose();
+
+    /// <summary>
+    /// Delegates do cache para o escopo. Cada um abre a PROPRIA conexao: a da
+    /// requisicao fecha antes de a atualizacao em segundo plano terminar.
+    /// Sem a operacao de impressao no catalogo (catalogo antigo), a impressao e
+    /// nula e o cache relê tudo ao atualizar.
+    /// </summary>
+    private (CacheIndiceFotos.Construtor, CacheIndiceFotos.LeitorImpressao?) CriarAcessoIndiceFotos(
+        Catalogo catalogo, Dictionary<string, JsonElement> parametros)
+    {
+        if (catalogo.Operacoes is null
+            || !catalogo.Operacoes.TryGetValue(OperacaoIndiceFotos, out var operacao)
+            || !operacao.UsoInterno)
+            throw new InvalidOperationException("Catalogo publico sem indice de fotos assinado.");
+        if (ValidadorParametros.Validar(operacao, parametros) is not null)
+            throw new ArgumentException("Escopo do indice de fotos invalido.");
+
+        CacheIndiceFotos.LeitorImpressao? impressao = null;
+        if (catalogo.Operacoes.TryGetValue(OperacaoImpressaoFotos, out var opImpressao)
+            && opImpressao.UsoInterno
+            && ValidadorParametros.Validar(opImpressao, parametros) is null)
+            impressao = ct => LerImpressaoFotos(opImpressao, parametros, ct);
+
+        return (ct => ConstruirIndiceFotos(operacao, parametros, ct), impressao);
+    }
+
+    private async Task<string> LerImpressaoFotos(
+        Operacao operacao, Dictionary<string, JsonElement> parametros, CancellationToken ct)
+    {
+        await using var conexao = new SqlConnection(config.ConexaoSql);
+        await conexao.OpenAsync(ct);
+        await using var comando = MontadorComando.Montar(operacao, parametros, conexao: conexao);
+        await using var leitor = await comando.ExecuteReaderAsync(ct);
+        if (!await leitor.ReadAsync(ct))
+            throw new InvalidOperationException("Impressao digital do indice de fotos sem linha.");
+        return string.Join("|", Enumerable.Range(0, leitor.FieldCount)
+            .Select(i => Convert.ToInt64(leitor.GetValue(i))));
+    }
+
+    private async Task<IReadOnlyDictionary<int, int>> ConstruirIndiceFotos(
+        Operacao operacao, Dictionary<string, JsonElement> parametros, CancellationToken ct)
+    {
+        await using var conexao = new SqlConnection(config.ConexaoSql);
+        await conexao.OpenAsync(ct);
+        var acumulador = new AcumuladorIndiceFotosPublicas();
+        var relogioIndice = Stopwatch.StartNew();
+        await using (var comando = MontadorComando.Montar(
+            operacao, parametros, conexao: conexao))
+        await using (var leitor = await comando.ExecuteReaderAsync(
+            CommandBehavior.SequentialAccess, ct))
+        {
+            while (await leitor.ReadAsync(ct))
+            {
+                if (relogioIndice.Elapsed > TempoMaximoIndiceFotos)
+                    throw new IndiceFotosTempoException(
+                        acumulador.LinhasLidas, acumulador.CaracteresLidos);
+                var produtoOrdem = leitor.GetInt32(0);
+                var imagemOrdem = leitor.GetInt32(1);
+                var tamanho = Convert.ToInt64(leitor.GetValue(2));
+                var texto = acumulador.PrecisaLerFoto(produtoOrdem)
+                    ? leitor.GetString(3) : null;
+                acumulador.Incluir(produtoOrdem, imagemOrdem, tamanho,
+                                  texto, IndiceFotosPublicas.FotoValida);
+            }
+        }
+        if (relogioIndice.Elapsed > TempoMaximoIndiceFotos)
+            throw new IndiceFotosTempoException(
+                acumulador.LinhasLidas, acumulador.CaracteresLidos);
+        return acumulador.Fotos;
     }
 
     private static async Task PrepararTabelaFotos(
