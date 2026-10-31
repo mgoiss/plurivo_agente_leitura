@@ -28,9 +28,10 @@ public class CatalogoCandidatoFiltroVariacaoTestes
     public void Versao_e_a_maior_dos_catalogos_do_repositorio()
     {
         var versao = Candidato().VersaoCatalogo;
-        Assert.Equal(34, versao);
-        Assert.Equal(Anterior().VersaoCatalogo + 1, versao);
-        Assert.True(versao > Catalogo.Analisar(Fixtures.CatalogoRealBytes).VersaoCatalogo);
+        Assert.Equal(35, versao);
+        // A v34 deste candidato ja foi assinada e publicada (catalogo.json); a v35 a sucede.
+        Assert.Equal(Catalogo.Analisar(Fixtures.CatalogoRealBytes).VersaoCatalogo + 1, versao);
+        Assert.True(versao > Anterior().VersaoCatalogo);
         Assert.True(versao > Ler("catalogo.candidato-publico.json").VersaoCatalogo);
         Assert.True(versao > Ler("catalogo.candidato-configuracao.json").VersaoCatalogo);
     }
@@ -156,6 +157,9 @@ public class CatalogoCandidatoFiltroVariacaoTestes
         Assert.Contains("variante.Inativo = 0 AND variante.Bloqueado_Venda = 0", op.Sql);
         Assert.Contains("cor.Ordem > 0", op.Sql);
         Assert.Contains("tam.Ordem > 0", op.Sql);
+        // Sentinela "sem dimensao" do Shop9 (Ordem 999) sai das opcoes; so com o nome conhecido.
+        Assert.Contains("AND NOT (cor.Ordem = 999 AND UPPER(LTRIM(RTRIM(cor.Nome))) = 'SEM COR')", op.Sql);
+        Assert.Contains("AND NOT (tam.Ordem = 999 AND UPPER(LTRIM(RTRIM(tam.Nome))) = 'SEM TAMANHO')", op.Sql);
         Assert.Contains("prod.Tipo = 'G'", op.Sql);
         Assert.Contains("ORDER BY Dimensao, Nome, Ordem", op.Sql);
         Assert.Contains("preco.Preco > 0", op.Sql);
