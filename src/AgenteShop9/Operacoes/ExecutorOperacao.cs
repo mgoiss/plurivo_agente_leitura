@@ -240,6 +240,7 @@ public sealed class ExecutorOperacao(
         var linhas = new List<IReadOnlyDictionary<string, object?>>();
         while (await leitor.ReadAsync(ct))
         {
+            // max_linhas e limite exato: ler a linha max_linhas+1 ja devolve resultado_grande (#117).
             if (linhas.Count >= op.MaxLinhas)
                 return MensagemResultado.Erro(idRequisicao, "resultado_grande",
                     $"a consulta passou de {op.MaxLinhas} linhas; refine os filtros.");
