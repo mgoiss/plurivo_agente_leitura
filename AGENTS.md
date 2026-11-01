@@ -48,3 +48,8 @@ Assinatura e chave pública: `../../ferramentas/assinatura/`.
 ## Fluxo e conhecimento compartilhado
 - Ver `../../AGENTS.md`. Descoberta durável → `../../vault/_inbox.md`, campo
   <projeto> = plurivo.
+
+- **Publicar o agente com `-p:IncludeNativeLibrariesForSelfExtract=true`.** Sem a flag o `.exe`
+  sai sem a biblioteca nativa do SQL Server (`DllNotFoundException` em `SNIInitialize`) e todas
+  as consultas dão `agente_indisponivel`. Hash batendo não prova que funciona: abrir o agente e
+  rodar uma consulta antes de publicar.
