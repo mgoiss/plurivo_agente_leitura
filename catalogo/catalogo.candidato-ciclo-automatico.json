@@ -5048,6 +5048,52 @@
       "tamanho_pagina_max": 200,
       "max_linhas": 10000,
       "timeout_ms": 30000
+    },
+    "emissao_origem_das_emitidas": {
+      "sql": "/* Emissão automática, etapa 6 (issue #130): a origem das NFC-e modelo 65 que o robô emitiu na filial\n   de destino (Referencia_Interna = SEQ da venda de origem), com o estado de hoje dessa venda de origem e\n   o cancelamento da nota. Serve a duas conferências do back-end:\n   - a cada ciclo, com a data de hoje: nota ATIVA (Cancelada = 0) cuja origem deixou de estar efetivada\n     (Origem_Efetivada = 0) é venda desefetivada depois de emitida;\n   - a cada 60 min, com 30 dias para trás: nota com Cancelada = 1 estorna a cota de pagamento.\n   Origem_Efetivada vale 0 também quando a origem não é achada na filial de origem (Seq_Origem nulo);\n   o back-end ignora esse caso. A janela é a Data_Emissao da nota. Só leitura. */\nSELECT fiscal.Chave_Acesso AS Nota_Chave,\n       mov.Sequencia AS Seq_Destino,\n       mov.Referencia_Interna AS Referencia_Interna,\n       fiscal.Data_Emissao,\n       fiscal.Cancelada,\n       CAST(mov.Preco_Final_Somado AS decimal(19,2)) AS Valor_Nota,\n       origem.Sequencia AS Seq_Origem,\n       CASE WHEN origem.Efetivado_Estoque = 1 AND origem.Desefetivado_Estoque = 0 THEN 1 ELSE 0 END AS Origem_Efetivada\nFROM Movimento AS mov\nINNER JOIN (\n    SELECT Ordem_Movimento, Chave_Acesso, MAX(Data_Emissao) AS Data_Emissao,\n           MAX(CAST(ISNULL(Documento_Cancelado, 0) AS int)) AS Cancelada\n    FROM Movimento_Documentos_Fiscais\n    WHERE SUBSTRING(Chave_Acesso, 21, 2) = '65'\n    GROUP BY Ordem_Movimento, Chave_Acesso\n    HAVING MAX(CASE WHEN Codigo_Status = 100 THEN 1 ELSE 0 END) = 1\n) AS fiscal ON fiscal.Ordem_Movimento = mov.Ordem\nLEFT JOIN Movimento AS origem\n       ON origem.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialOrigem)\n      AND origem.Tipo_Operacao = 'VND'\n      AND origem.Sequencia = TRY_CAST(mov.Referencia_Interna AS int)\nWHERE mov.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)\n  AND mov.Tipo_Operacao = 'VND'\n  AND ISNULL(mov.Referencia_Interna, '') <> ''\n  AND fiscal.Data_Emissao >= @inicio AND fiscal.Data_Emissao < DATEADD(DAY, 1, @fim)",
+      "sql_contagem": "SELECT COUNT(*) FROM (\n/* Emissão automática, etapa 6 (issue #130): a origem das NFC-e modelo 65 que o robô emitiu na filial\n   de destino (Referencia_Interna = SEQ da venda de origem), com o estado de hoje dessa venda de origem e\n   o cancelamento da nota. Serve a duas conferências do back-end:\n   - a cada ciclo, com a data de hoje: nota ATIVA (Cancelada = 0) cuja origem deixou de estar efetivada\n     (Origem_Efetivada = 0) é venda desefetivada depois de emitida;\n   - a cada 60 min, com 30 dias para trás: nota com Cancelada = 1 estorna a cota de pagamento.\n   Origem_Efetivada vale 0 também quando a origem não é achada na filial de origem (Seq_Origem nulo);\n   o back-end ignora esse caso. A janela é a Data_Emissao da nota. Só leitura. */\nSELECT fiscal.Chave_Acesso AS Nota_Chave,\n       mov.Sequencia AS Seq_Destino,\n       mov.Referencia_Interna AS Referencia_Interna,\n       fiscal.Data_Emissao,\n       fiscal.Cancelada,\n       CAST(mov.Preco_Final_Somado AS decimal(19,2)) AS Valor_Nota,\n       origem.Sequencia AS Seq_Origem,\n       CASE WHEN origem.Efetivado_Estoque = 1 AND origem.Desefetivado_Estoque = 0 THEN 1 ELSE 0 END AS Origem_Efetivada\nFROM Movimento AS mov\nINNER JOIN (\n    SELECT Ordem_Movimento, Chave_Acesso, MAX(Data_Emissao) AS Data_Emissao,\n           MAX(CAST(ISNULL(Documento_Cancelado, 0) AS int)) AS Cancelada\n    FROM Movimento_Documentos_Fiscais\n    WHERE SUBSTRING(Chave_Acesso, 21, 2) = '65'\n    GROUP BY Ordem_Movimento, Chave_Acesso\n    HAVING MAX(CASE WHEN Codigo_Status = 100 THEN 1 ELSE 0 END) = 1\n) AS fiscal ON fiscal.Ordem_Movimento = mov.Ordem\nLEFT JOIN Movimento AS origem\n       ON origem.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialOrigem)\n      AND origem.Tipo_Operacao = 'VND'\n      AND origem.Sequencia = TRY_CAST(mov.Referencia_Interna AS int)\nWHERE mov.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)\n  AND mov.Tipo_Operacao = 'VND'\n  AND ISNULL(mov.Referencia_Interna, '') <> ''\n  AND fiscal.Data_Emissao >= @inicio AND fiscal.Data_Emissao < DATEADD(DAY, 1, @fim)\n) AS consulta_contagem",
+      "parametros": [
+        {
+          "nome": "CodigoFilialDestino",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        },
+        {
+          "nome": "CodigoFilialOrigem",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        },
+        {
+          "nome": "inicio",
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        {
+          "nome": "fim",
+          "tipo": "data",
+          "obrigatorio": true
+        }
+      ],
+      "ordenacao": {
+        "colunas": {
+          "nota": "fiscal.Chave_Acesso"
+        },
+        "padrao": {
+          "coluna": "nota",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "fiscal.Chave_Acesso",
+        "mov.Sequencia"
+      ],
+      "tamanho_pagina_padrao": 200,
+      "tamanho_pagina_max": 200,
+      "periodo_max_dias": 31,
+      "max_linhas": 10000,
+      "timeout_ms": 30000
     }
   }
 }
