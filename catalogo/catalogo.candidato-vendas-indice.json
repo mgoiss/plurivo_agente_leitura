@@ -4582,6 +4582,383 @@
       "max_linhas": 1,
       "timeout_ms": 2000,
       "uso_interno": true
+    },
+    "catalogo_conferir_carrinho": {
+      "sql": "WITH Itens AS (\n    SELECT v.Posicao, v.Produto_Ordem, v.Variacao_Ordem\n    FROM (VALUES (1, @Produto_01, @Variacao_01),(2, @Produto_02, @Variacao_02),(3, @Produto_03, @Variacao_03),(4, @Produto_04, @Variacao_04),(5, @Produto_05, @Variacao_05),(6, @Produto_06, @Variacao_06),(7, @Produto_07, @Variacao_07),(8, @Produto_08, @Variacao_08),(9, @Produto_09, @Variacao_09),(10, @Produto_10, @Variacao_10),(11, @Produto_11, @Variacao_11),(12, @Produto_12, @Variacao_12),(13, @Produto_13, @Variacao_13),(14, @Produto_14, @Variacao_14),(15, @Produto_15, @Variacao_15),(16, @Produto_16, @Variacao_16),(17, @Produto_17, @Variacao_17),(18, @Produto_18, @Variacao_18),(19, @Produto_19, @Variacao_19),(20, @Produto_20, @Variacao_20),(21, @Produto_21, @Variacao_21),(22, @Produto_22, @Variacao_22),(23, @Produto_23, @Variacao_23),(24, @Produto_24, @Variacao_24)) AS v(Posicao, Produto_Ordem, Variacao_Ordem)\n    WHERE v.Produto_Ordem IS NOT NULL\n), Filial AS (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilial)\nSELECT item.Posicao, item.Produto_Ordem, item.Variacao_Ordem,\n       CASE WHEN prod.Ordem IS NULL THEN 0 ELSE 1 END AS Ativo,\n       CONVERT(varchar(40), CAST(preco.Preco AS decimal(19,4))) AS Preco,\n       CASE WHEN esto.Invalido = 1 THEN 1 ELSE 0 END AS Estoque_Invalido,\n       CASE WHEN esto.Invalido = 0 AND esto.Qtde_Estoque_Atual > 0 AND (prod.Tipo = 'N' OR grade.Ordem IS NOT NULL) THEN 1 ELSE 0 END AS Disponivel\nFROM Itens AS item\nCROSS JOIN Filial AS filial\nLEFT JOIN Prod_Serv AS prod ON prod.Ordem = item.Produto_Ordem\n     AND prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n     AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n     AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n     AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\nLEFT JOIN Prod_Serv_Grade AS grade ON grade.Ordem = item.Variacao_Ordem AND grade.Ordem_Prod_Serv = prod.Ordem\n     AND prod.Tipo = 'G' AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0\nOUTER APPLY (SELECT TOP (1) p.Preco FROM Prod_Serv_Precos AS p\n             WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @Tabela AND p.Inativo = 0 AND p.Preco > 0) AS preco\nLEFT JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem AND esto.Ordem_Filial = filial.Ordem\n     AND esto.Ordem_Edicao = 0\n     AND esto.Ordem_Cor = CASE WHEN prod.Tipo = 'G' THEN COALESCE(grade.Ordem_Cor, -1) ELSE 0 END\n     AND esto.Ordem_Tamanho = CASE WHEN prod.Tipo = 'G' THEN COALESCE(grade.Ordem_Tamanho, -1) ELSE 0 END",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Produto_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_09",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_09",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_10",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_10",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_11",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_11",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_12",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_12",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_13",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_13",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_14",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_14",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_15",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_15",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_16",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_16",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_17",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_17",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_18",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_18",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_19",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_19",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_20",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_20",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_21",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_21",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_22",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_22",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_23",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_23",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_24",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_24",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 24,
+      "timeout_ms": 2000
     }
   }
 }
