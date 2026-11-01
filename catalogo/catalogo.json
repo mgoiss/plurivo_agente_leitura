@@ -1,5 +1,5 @@
 {
-  "versao_catalogo": 35,
+  "versao_catalogo": 36,
   "operacoes": {
     "listar_produtos_estoque": {
       "sql": "SELECT prod.Ordem, prod.Codigo, prod.Nome, un.Codigo AS cod_un, un.Nome AS nome_un, clas.Codigo AS cod_classe, clas.Nome AS nome_classe, sub.Codigo AS cod_subclasse, sub.Nome AS nome_subclasse, esto.Qtde_Estoque_Atual FROM Prod_Serv AS prod INNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda INNER JOIN Classes AS clas ON clas.Ordem = prod.Ordem_Classe INNER JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse INNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem WHERE esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilial) AND (@Codigo IS NULL OR prod.Codigo = @Codigo) AND (@Nome IS NULL OR prod.Nome LIKE '%' + @Nome + '%') AND (@CodigoClasse IS NULL OR clas.Codigo = @CodigoClasse) AND (@CodigoSubclasse IS NULL OR sub.Codigo = @CodigoSubclasse) AND (@EstoqueMinimo IS NULL OR esto.Qtde_Estoque_Atual >= @EstoqueMinimo) AND (@EstoqueMaximo IS NULL OR esto.Qtde_Estoque_Atual <= @EstoqueMaximo) AND (@EstoqueMaiorQue IS NULL OR esto.Qtde_Estoque_Atual > @EstoqueMaiorQue) AND (@EstoqueMenorQue IS NULL OR esto.Qtde_Estoque_Atual < @EstoqueMenorQue)",
@@ -4529,6 +4529,59 @@
       "timeout_ms": 3000,
       "max_caracteres_texto": 500,
       "usa_fotos_validadas": true
+    },
+    "catalogo_indice_fotos_impressao": {
+      "sql": "SELECT COUNT(*) AS Total_Fotos,\n       ISNULL(MAX(foto.Ordem), 0) AS Maior_Ordem_Foto,\n       ISNULL(SUM(CAST(DATALENGTH(foto.Foto) AS bigint)), 0) AS Soma_Caracteres,\n       ISNULL(CHECKSUM_AGG(CHECKSUM(prod.Ordem, foto.Ordem, foto.Principal, foto.Posicao)), 0) AS Soma_Verificacao\nFROM Prod_Serv AS prod\nINNER JOIN Prod_Serv_Fotos AS foto ON foto.Ordem_Prod_Serv = prod.Ordem\nWHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n  AND DATALENGTH(foto.Foto) BETWEEN 1 AND 1000000\n  AND EXISTS (SELECT 1 FROM Filiais AS filial WHERE filial.Codigo = @CodigoFilial)\n  AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n              WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                AND preco.Inativo = 0 AND preco.Preco > 0\n                AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03,\n                    @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n  AND (prod.Tipo = 'N' OR EXISTS (SELECT 1 FROM Prod_Serv_Grade AS grade\n      WHERE grade.Ordem_Prod_Serv = prod.Ordem\n        AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Tabela_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 1,
+      "timeout_ms": 2000,
+      "uso_interno": true
     }
   }
 }
