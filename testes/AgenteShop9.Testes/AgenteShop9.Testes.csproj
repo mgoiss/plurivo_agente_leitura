@@ -39,6 +39,7 @@
     <None Include="..\..\catalogo\catalogo.candidato-filtro-variacao.json" Link="fixtures\catalogo.candidato-filtro-variacao.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.candidato-indice-fotos.json" Link="fixtures\catalogo.candidato-indice-fotos.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.candidato-vendas-indice.json" Link="fixtures\catalogo.candidato-vendas-indice.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\catalogo\catalogo.candidato-ciclo-automatico.json" Link="fixtures\catalogo.candidato-ciclo-automatico.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.json"
           Link="fixtures\catalogo-real.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
