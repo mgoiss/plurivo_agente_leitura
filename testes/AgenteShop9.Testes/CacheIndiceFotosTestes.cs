@@ -23,6 +23,8 @@ public class CacheIndiceFotosTestes
         public bool FalharConstrucao;
         public bool FalharImpressao;
         public TaskCompletionSource? Portao;
+        public TaskCompletionSource? PortaoImpressao;
+        public bool ImpressaoIgnoraCancelamento;
 
         public CacheIndiceFotos.Construtor Construtor => async ct =>
         {
@@ -34,13 +36,24 @@ public class CacheIndiceFotosTestes
             return Indice(Marca);
         };
 
-        public CacheIndiceFotos.LeitorImpressao Leitor => _ =>
+        public CacheIndiceFotos.LeitorImpressao Leitor => ct =>
         {
             Interlocked.Increment(ref Impressoes);
             if (FalharImpressao)
                 throw new InvalidOperationException("falha simulada");
+            if (PortaoImpressao is not null)
+            {
+                var portao = PortaoImpressao.Task;
+                return Aguardar(portao, ImpressaoIgnoraCancelamento ? default : ct);
+            }
             return Task.FromResult(ImpressaoAtual);
         };
+
+        private async Task<string> Aguardar(Task portao, CancellationToken ct)
+        {
+            await portao.WaitAsync(ct);
+            return ImpressaoAtual;
+        }
     }
 
     private static CacheIndiceFotos Novo(Relogio relogio, OpcoesCacheIndiceFotos? opcoes = null) =>
@@ -370,9 +383,14 @@ public class CacheIndiceFotosTestes
 
         // Expiradas juntas: a reconstrucao em segundo plano tambem e uma por vez.
         relogio.Agora += TimeSpan.FromSeconds(301);
-        foreach (var i in Enumerable.Range(0, 8))
-            await cache.ObterAsync($"k{i}", construtor, null, default);
-        await Esperar(() => Volatile.Read(ref iniciadas[0]) == 16);
+        // A continuacao que libera a chave de _emAndamento roda no pool, sem ordem
+        // garantida: repete a consulta ate a reconstrucao ser disparada.
+        await Esperar(() =>
+        {
+            foreach (var i in Enumerable.Range(0, 8))
+                cache.ObterAsync($"k{i}", construtor, null, default).GetAwaiter().GetResult();
+            return Volatile.Read(ref iniciadas[0]) == 16;
+        });
         await Task.Delay(100);
         Assert.Equal(1, maximo[0]);
     }
@@ -430,5 +448,181 @@ public class CacheIndiceFotosTestes
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => requisicao.WaitAsync(TimeSpan.FromSeconds(5)));
         Assert.Equal(0, naFila.Construcoes);
+    }
+
+    private static TaskCompletionSource NovoPortao() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private static async Task<CacheIndiceFotos> ExpiradoComLeitor(Relogio relogio, Fonte fonte, OpcoesCacheIndiceFotos opcoes)
+    {
+        var cache = Novo(relogio, opcoes);
+        await cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default);
+        relogio.Agora += TimeSpan.FromSeconds(301);
+        return cache;
+    }
+
+    [Fact]
+    public async Task Conferencia_com_impressao_igual_renova_antes_de_responder_e_nao_reconstroi()
+    {
+        var relogio = new Relogio();
+        var fonte = new Fonte();
+        using var cache = await ExpiradoComLeitor(relogio, fonte, new());
+
+        var fotos = await cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default);
+
+        Assert.Equal(1, fotos[1]);
+        Assert.Equal(2, fonte.Impressoes);
+        // Renovacao ja feita na resposta: dentro da nova validade nada e consultado.
+        relogio.Agora += TimeSpan.FromSeconds(299);
+        await cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default);
+        Assert.Equal(2, fonte.Impressoes);
+        Assert.Equal(1, fonte.Construcoes);
+    }
+
+    [Fact]
+    public async Task Conferencia_e_unica_e_as_outras_requisicoes_nao_esperam()
+    {
+        var relogio = new Relogio();
+        var fonte = new Fonte();
+        using var cache = await ExpiradoComLeitor(relogio, fonte, new() { TempoConferencia = TimeSpan.FromSeconds(30) });
+        fonte.PortaoImpressao = NovoPortao();
+
+        var detectora = cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default);
+        await Esperar(() => fonte.Impressoes == 2);
+        Assert.False(detectora.IsCompleted);
+
+        var outras = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ =>
+            cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default)));
+        Assert.All(outras, r => Assert.Equal(1, r[1]));
+        Assert.Equal(2, fonte.Impressoes);   // so uma conferencia
+        Assert.False(detectora.IsCompleted);
+
+        fonte.PortaoImpressao.SetResult();
+        Assert.Equal(1, (await detectora)[1]);
+        Assert.Equal(1, fonte.Construcoes);
+    }
+
+    [Fact]
+    public async Task Conferencia_com_impressao_diferente_serve_o_antigo_e_reconstroi_em_segundo_plano()
+    {
+        var relogio = new Relogio();
+        var fonte = new Fonte();
+        using var cache = await ExpiradoComLeitor(relogio, fonte, new());
+        fonte.ImpressaoAtual = "b";
+        fonte.Marca = 2;
+        fonte.Portao = NovoPortao();
+
+        var fotos = await cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default);
+
+        Assert.Equal(1, fotos[1]);   // antigo, sem esperar a construcao
+        await Esperar(() => fonte.Construcoes == 2);
+        fonte.Portao.SetResult();
+        await Esperar(() => cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default).Result[1] == 2);
+        Assert.Equal(2, fonte.Construcoes);
+    }
+
+    [Fact]
+    public async Task Conferencia_que_estoura_o_prazo_serve_o_antigo_e_reconstroi()
+    {
+        var relogio = new Relogio();
+        var fonte = new Fonte();
+        using var cache = await ExpiradoComLeitor(relogio, fonte, new() { TempoConferencia = TimeSpan.FromMilliseconds(20) });
+        fonte.PortaoImpressao = NovoPortao();          // nunca liberado
+        fonte.ImpressaoIgnoraCancelamento = true;      // leitor que ignora o cancelamento
+        fonte.Marca = 2;
+
+        var fotos = await cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(1, fotos[1]);
+        await Esperar(() => fonte.Construcoes == 2);   // reconstroi sem reler a impressao travada
+        Assert.Equal(2, fonte.Impressoes);
+        fonte.PortaoImpressao.TrySetResult();
+    }
+
+    [Fact]
+    public async Task Conferencia_que_falha_serve_o_antigo_e_reconstroi()
+    {
+        var relogio = new Relogio();
+        var fonte = new Fonte();
+        using var cache = await ExpiradoComLeitor(relogio, fonte, new());
+        fonte.FalharImpressao = true;
+        fonte.Marca = 2;
+
+        Assert.Equal(1, (await cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default))[1]);
+
+        await Esperar(() => cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default).Result[1] == 2);
+        Assert.Equal(2, fonte.Construcoes);
+    }
+
+    [Fact]
+    public async Task Conferencia_no_limite_de_renovacoes_reconstroi_mesmo_com_impressao_igual()
+    {
+        var relogio = new Relogio();
+        var fonte = new Fonte();
+        using var cache = await ExpiradoComLeitor(relogio, fonte, new() { MaxRenovacoes = 1 });
+        await cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default);   // 1a renovacao
+        Assert.Equal(1, fonte.Construcoes);
+
+        relogio.Agora += TimeSpan.FromSeconds(301);
+        fonte.Marca = 2;
+        Assert.Equal(1, (await cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default))[1]);
+
+        await Esperar(() => cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default).Result[1] == 2);
+        Assert.Equal(2, fonte.Construcoes);
+    }
+
+    [Fact]
+    public async Task Conferencia_nao_espera_a_fila_da_construcao_de_outro_escopo()
+    {
+        var relogio = new Relogio();
+        var fonte = new Fonte();
+        using var cache = await ExpiradoComLeitor(relogio, fonte, new());
+        var ocupada = new Fonte { Portao = NovoPortao() };
+        var ocupando = cache.Aquecer("outro", ocupada.Construtor, null);
+        await Esperar(() => ocupada.Construcoes == 1);   // semaforo global tomado
+
+        await cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(2, fonte.Impressoes);   // conferiu e renovou sem entrar na fila
+        Assert.Equal(1, fonte.Construcoes);
+
+        ocupada.Portao.SetResult();
+        await ocupando;
+    }
+
+    [Fact]
+    public async Task Desligar_durante_a_conferencia_libera_a_requisicao_e_nao_reconstroi()
+    {
+        var relogio = new Relogio();
+        var fonte = new Fonte();
+        var cache = await ExpiradoComLeitor(relogio, fonte, new() { TempoConferencia = TimeSpan.FromSeconds(30) });
+        fonte.PortaoImpressao = NovoPortao();
+
+        var requisicao = cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default);
+        Assert.False(requisicao.IsCompleted);
+        cache.Dispose();
+
+        Assert.Equal(1, (await requisicao.WaitAsync(TimeSpan.FromSeconds(5)))[1]);
+        Assert.Equal(1, fonte.Construcoes);
+    }
+
+    [Fact]
+    public async Task Requisicao_cancelada_na_conferencia_nao_derruba_a_conferencia_compartilhada()
+    {
+        var relogio = new Relogio();
+        var fonte = new Fonte();
+        using var cache = await ExpiradoComLeitor(relogio, fonte, new() { TempoConferencia = TimeSpan.FromSeconds(30) });
+        fonte.PortaoImpressao = NovoPortao();
+        using var cts = new CancellationTokenSource();
+
+        var cancelada = cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, cts.Token);
+        await cts.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cancelada);
+
+        fonte.PortaoImpressao.SetResult();
+        await Esperar(() => cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default).Result[1] == 1
+                            && fonte.Impressoes == 2);
+        // Renovado pela conferencia que seguiu: dentro da validade nao confere de novo.
+        await cache.ObterAsync("k", fonte.Construtor, fonte.Leitor, default);
+        Assert.Equal(2, fonte.Impressoes);
+        Assert.Equal(1, fonte.Construcoes);
     }
 }
