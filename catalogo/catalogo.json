@@ -1,5 +1,5 @@
 {
-  "versao_catalogo": 36,
+  "versao_catalogo": 37,
   "operacoes": {
     "listar_produtos_estoque": {
       "sql": "SELECT prod.Ordem, prod.Codigo, prod.Nome, un.Codigo AS cod_un, un.Nome AS nome_un, clas.Codigo AS cod_classe, clas.Nome AS nome_classe, sub.Codigo AS cod_subclasse, sub.Nome AS nome_subclasse, esto.Qtde_Estoque_Atual FROM Prod_Serv AS prod INNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda INNER JOIN Classes AS clas ON clas.Ordem = prod.Ordem_Classe INNER JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse INNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem WHERE esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilial) AND (@Codigo IS NULL OR prod.Codigo = @Codigo) AND (@Nome IS NULL OR prod.Nome LIKE '%' + @Nome + '%') AND (@CodigoClasse IS NULL OR clas.Codigo = @CodigoClasse) AND (@CodigoSubclasse IS NULL OR sub.Codigo = @CodigoSubclasse) AND (@EstoqueMinimo IS NULL OR esto.Qtde_Estoque_Atual >= @EstoqueMinimo) AND (@EstoqueMaximo IS NULL OR esto.Qtde_Estoque_Atual <= @EstoqueMaximo) AND (@EstoqueMaiorQue IS NULL OR esto.Qtde_Estoque_Atual > @EstoqueMaiorQue) AND (@EstoqueMenorQue IS NULL OR esto.Qtde_Estoque_Atual < @EstoqueMenorQue)",
@@ -1699,7 +1699,7 @@
       "timeout_ms": 2000
     },
     "catalogo_inicio": {
-      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nVendas AS (\n    SELECT item.Ordem_Prod_Serv AS Produto_Ordem,\n           SUM(CAST(item.Quantidade AS decimal(19,4))) AS Quantidade\n    FROM Movimento AS mov\n    INNER JOIN Filiais AS filial ON filial.Ordem = mov.Ordem_Filial\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = mov.Ordem\n    WHERE filial.Codigo = @CodigoFilial\n      AND mov.Tipo_Operacao = 'VND'\n      AND mov.Data_Efetivado_Estoque IS NOT NULL\n      AND mov.Efetivado_Estoque = 1\n      AND mov.Desefetivado_Estoque = 0 AND item.Linha_Excluida = 0\n      AND @Inicio >= DATEADD(DAY, -59, CAST(GETDATE() AS date))\n      AND mov.Data_Efetivado_Estoque >= @Inicio\n      AND mov.Data_Efetivado_Estoque <= GETDATE()\n    GROUP BY item.Ordem_Prod_Serv\n)\nSELECT TOP (7) cla.Ordem AS Classe_Ordem, cla.Nome AS Nome,\n       COUNT(DISTINCT prod.Ordem) AS Total_Produtos\nFROM Elegiveis AS prod\nINNER JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Vendas AS venda ON venda.Produto_Ordem = prod.Ordem\nGROUP BY cla.Ordem, cla.Nome\nORDER BY COALESCE(SUM(venda.Quantidade), 0) DESC, cla.Nome ASC, cla.Ordem ASC",
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nVendas AS (\n    SELECT item.Ordem_Prod_Serv AS Produto_Ordem,\n           SUM(CAST(item.Quantidade AS decimal(19,4))) AS Quantidade\n    FROM Movimento AS mov WITH (INDEX (CI_Filial_Estoque_CliFor))\n    INNER JOIN Filiais AS filial ON filial.Ordem = mov.Ordem_Filial\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = mov.Ordem\n    WHERE filial.Codigo = @CodigoFilial\n      AND mov.Tipo_Operacao = 'VND'\n      AND mov.Data_Efetivado_Estoque IS NOT NULL\n      AND mov.Efetivado_Estoque = 1\n      AND mov.Desefetivado_Estoque = 0 AND item.Linha_Excluida = 0\n      AND @Inicio >= DATEADD(DAY, -59, CAST(GETDATE() AS date))\n      AND mov.Data_Efetivado_Estoque >= @Inicio\n      AND mov.Data_Efetivado_Estoque <= GETDATE()\n    GROUP BY item.Ordem_Prod_Serv\n)\nSELECT TOP (7) cla.Ordem AS Classe_Ordem, cla.Nome AS Nome,\n       COUNT(DISTINCT prod.Ordem) AS Total_Produtos\nFROM Elegiveis AS prod\nINNER JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Vendas AS venda ON venda.Produto_Ordem = prod.Ordem\nGROUP BY cla.Ordem, cla.Nome\nORDER BY COALESCE(SUM(venda.Quantidade), 0) DESC, cla.Nome ASC, cla.Ordem ASC",
       "parametros": [
         {
           "nome": "CodigoFilial",
@@ -3164,7 +3164,7 @@
       "timeout_ms": 2000
     },
     "catalogo_relacionados": {
-      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nMovimentosOrigem AS (\n    SELECT DISTINCT mov.Ordem\n    FROM Movimento AS mov\n    INNER JOIN Filiais AS filial ON filial.Ordem = mov.Ordem_Filial\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = mov.Ordem\n    INNER JOIN Elegiveis AS fonte ON fonte.Ordem = item.Ordem_Prod_Serv\n    WHERE filial.Codigo = @CodigoFilial AND item.Ordem_Prod_Serv = @ProdutoOrdem\n      AND mov.Tipo_Operacao = 'VND' AND mov.Data_Efetivado_Estoque IS NOT NULL\n      AND mov.Efetivado_Estoque = 1\n      AND mov.Desefetivado_Estoque = 0 AND item.Linha_Excluida = 0\n      AND @Inicio >= DATEADD(DAY, -59, CAST(GETDATE() AS date))\n      AND mov.Data_Efetivado_Estoque >= @Inicio\n      AND mov.Data_Efetivado_Estoque <= GETDATE()\n), Recomendacoes AS (\n    SELECT prod.Ordem AS Produto_Ordem, prod.Nome AS Nome,\n           COUNT(DISTINCT item.Ordem_Movimento) AS Vendas_Em_Comum\n    FROM MovimentosOrigem AS origem\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = origem.Ordem\n    INNER JOIN Elegiveis AS prod ON prod.Ordem = item.Ordem_Prod_Serv\n    WHERE prod.Ordem <> @ProdutoOrdem AND item.Linha_Excluida = 0\n    GROUP BY prod.Ordem, prod.Nome\n)\nSELECT TOP (25) resultado.Origem_Valida, resultado.Produto_Ordem,\n       resultado.Nome, resultado.Vendas_Em_Comum\nFROM (\n    SELECT CAST(1 AS int) AS Origem_Valida, fonte.Ordem AS Produto_Ordem,\n           fonte.Nome AS Nome, CAST(0 AS int) AS Vendas_Em_Comum\n    FROM Elegiveis AS fonte WHERE fonte.Ordem = @ProdutoOrdem\n    UNION ALL\n    SELECT CAST(0 AS int), rec.Produto_Ordem, rec.Nome, rec.Vendas_Em_Comum\n    FROM Recomendacoes AS rec\n) AS resultado\nORDER BY resultado.Origem_Valida DESC, resultado.Vendas_Em_Comum DESC,\n         resultado.Nome ASC, resultado.Produto_Ordem ASC",
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nMovimentosOrigem AS (\n    SELECT DISTINCT mov.Ordem\n    FROM Movimento AS mov WITH (INDEX (CI_Filial_Estoque_CliFor))\n    INNER JOIN Filiais AS filial ON filial.Ordem = mov.Ordem_Filial\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = mov.Ordem\n    INNER JOIN Elegiveis AS fonte ON fonte.Ordem = item.Ordem_Prod_Serv\n    WHERE filial.Codigo = @CodigoFilial AND item.Ordem_Prod_Serv = @ProdutoOrdem\n      AND mov.Tipo_Operacao = 'VND' AND mov.Data_Efetivado_Estoque IS NOT NULL\n      AND mov.Efetivado_Estoque = 1\n      AND mov.Desefetivado_Estoque = 0 AND item.Linha_Excluida = 0\n      AND @Inicio >= DATEADD(DAY, -59, CAST(GETDATE() AS date))\n      AND mov.Data_Efetivado_Estoque >= @Inicio\n      AND mov.Data_Efetivado_Estoque <= GETDATE()\n), Recomendacoes AS (\n    SELECT prod.Ordem AS Produto_Ordem, prod.Nome AS Nome,\n           COUNT(DISTINCT item.Ordem_Movimento) AS Vendas_Em_Comum\n    FROM MovimentosOrigem AS origem\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = origem.Ordem\n    INNER JOIN Elegiveis AS prod ON prod.Ordem = item.Ordem_Prod_Serv\n    WHERE prod.Ordem <> @ProdutoOrdem AND item.Linha_Excluida = 0\n    GROUP BY prod.Ordem, prod.Nome\n)\nSELECT TOP (25) resultado.Origem_Valida, resultado.Produto_Ordem,\n       resultado.Nome, resultado.Vendas_Em_Comum\nFROM (\n    SELECT CAST(1 AS int) AS Origem_Valida, fonte.Ordem AS Produto_Ordem,\n           fonte.Nome AS Nome, CAST(0 AS int) AS Vendas_Em_Comum\n    FROM Elegiveis AS fonte WHERE fonte.Ordem = @ProdutoOrdem\n    UNION ALL\n    SELECT CAST(0 AS int), rec.Produto_Ordem, rec.Nome, rec.Vendas_Em_Comum\n    FROM Recomendacoes AS rec\n) AS resultado\nORDER BY resultado.Origem_Valida DESC, resultado.Vendas_Em_Comum DESC,\n         resultado.Nome ASC, resultado.Produto_Ordem ASC",
       "parametros": [
         {
           "nome": "CodigoFilial",
@@ -3348,7 +3348,7 @@
       "usa_fotos_validadas": true
     },
     "catalogo_produtos_ids": {
-      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nSelecionados AS (SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo, prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia FROM Elegiveis AS prod\nLEFT JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse\nLEFT JOIN Familias AS fam ON fam.Ordem = prod.Ordem_Familia\nWHERE (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem)\n      AND (@SubclasseOrdem IS NULL OR prod.Ordem_Subclasse = @SubclasseOrdem)\n      AND (@FamiliaOrdem IS NULL OR prod.Ordem_Familia = @FamiliaOrdem)\n      AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) AND (@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL)\n           OR (prod.Tipo = 'G' AND EXISTS (\n               SELECT 1 FROM Prod_Serv_Grade AS variante\n               WHERE variante.Ordem_Prod_Serv = prod.Ordem\n                 AND variante.Inativo = 0 AND variante.Bloqueado_Venda = 0\n                 AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) OR variante.Ordem_Cor IN (@CorOrdem_01, @CorOrdem_02, @CorOrdem_03, @CorOrdem_04))\n                 AND ((@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL) OR variante.Ordem_Tamanho IN (@TamanhoOrdem_01, @TamanhoOrdem_02, @TamanhoOrdem_03, @TamanhoOrdem_04)))))\n      AND (@Busca IS NULL OR CONVERT(varchar(60), prod.Codigo) LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR prod.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR cla.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR sub.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR fam.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%')\n      ),\nVendas AS (\n    SELECT item.Ordem_Prod_Serv AS Produto_Ordem,\n           SUM(CAST(item.Quantidade AS decimal(19,4))) AS Quantidade\n    FROM Movimento AS mov\n    INNER JOIN Filiais AS filial ON filial.Ordem = mov.Ordem_Filial\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = mov.Ordem\n    WHERE filial.Codigo = @CodigoFilial\n      AND mov.Tipo_Operacao = 'VND'\n      AND mov.Data_Efetivado_Estoque IS NOT NULL\n      AND mov.Efetivado_Estoque = 1\n      AND mov.Desefetivado_Estoque = 0 AND item.Linha_Excluida = 0\n      AND @Inicio >= DATEADD(DAY, -59, CAST(GETDATE() AS date))\n      AND mov.Data_Efetivado_Estoque >= @Inicio\n      AND mov.Data_Efetivado_Estoque <= GETDATE()\n    GROUP BY item.Ordem_Prod_Serv\n)\nSELECT prod.Ordem AS Produto_Ordem, prod.Nome AS Nome,\n       COALESCE(CAST(escolhido.Preco AS decimal(19,4)), CAST(999999999999999 AS decimal(19,4))) AS Preco_Asc,\n       CASE WHEN escolhido.Preco IS NULL THEN CAST(999999999999999 AS decimal(19,4))\n            ELSE -CAST(escolhido.Preco AS decimal(19,4)) END AS Preco_Desc,\n       COALESCE(venda.Quantidade, 0) AS Quantidade_Vendida\nFROM Selecionados AS prod\nOUTER APPLY (SELECT TOP (1) p.Preco FROM Prod_Serv_Precos AS p\n             WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @TabelaEscolhida\n               AND p.Inativo = 0 AND p.Preco > 0) AS escolhido\nLEFT JOIN Vendas AS venda ON venda.Produto_Ordem = prod.Ordem",
+      "sql": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n),\nSelecionados AS (SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo, prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia FROM Elegiveis AS prod\nLEFT JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse\nLEFT JOIN Familias AS fam ON fam.Ordem = prod.Ordem_Familia\nWHERE (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem)\n      AND (@SubclasseOrdem IS NULL OR prod.Ordem_Subclasse = @SubclasseOrdem)\n      AND (@FamiliaOrdem IS NULL OR prod.Ordem_Familia = @FamiliaOrdem)\n      AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) AND (@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL)\n           OR (prod.Tipo = 'G' AND EXISTS (\n               SELECT 1 FROM Prod_Serv_Grade AS variante\n               WHERE variante.Ordem_Prod_Serv = prod.Ordem\n                 AND variante.Inativo = 0 AND variante.Bloqueado_Venda = 0\n                 AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) OR variante.Ordem_Cor IN (@CorOrdem_01, @CorOrdem_02, @CorOrdem_03, @CorOrdem_04))\n                 AND ((@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL) OR variante.Ordem_Tamanho IN (@TamanhoOrdem_01, @TamanhoOrdem_02, @TamanhoOrdem_03, @TamanhoOrdem_04)))))\n      AND (@Busca IS NULL OR CONVERT(varchar(60), prod.Codigo) LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR prod.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR cla.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR sub.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR fam.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%')\n      ),\nVendas AS (\n    SELECT item.Ordem_Prod_Serv AS Produto_Ordem,\n           SUM(CAST(item.Quantidade AS decimal(19,4))) AS Quantidade\n    FROM Movimento AS mov WITH (INDEX (CI_Filial_Estoque_CliFor))\n    INNER JOIN Filiais AS filial ON filial.Ordem = mov.Ordem_Filial\n    INNER JOIN Movimento_Prod_Serv AS item ON item.Ordem_Movimento = mov.Ordem\n    WHERE filial.Codigo = @CodigoFilial\n      AND mov.Tipo_Operacao = 'VND'\n      AND mov.Data_Efetivado_Estoque IS NOT NULL\n      AND mov.Efetivado_Estoque = 1\n      AND mov.Desefetivado_Estoque = 0 AND item.Linha_Excluida = 0\n      AND @Inicio >= DATEADD(DAY, -59, CAST(GETDATE() AS date))\n      AND mov.Data_Efetivado_Estoque >= @Inicio\n      AND mov.Data_Efetivado_Estoque <= GETDATE()\n    GROUP BY item.Ordem_Prod_Serv\n)\nSELECT prod.Ordem AS Produto_Ordem, prod.Nome AS Nome,\n       COALESCE(CAST(escolhido.Preco AS decimal(19,4)), CAST(999999999999999 AS decimal(19,4))) AS Preco_Asc,\n       CASE WHEN escolhido.Preco IS NULL THEN CAST(999999999999999 AS decimal(19,4))\n            ELSE -CAST(escolhido.Preco AS decimal(19,4)) END AS Preco_Desc,\n       COALESCE(venda.Quantidade, 0) AS Quantidade_Vendida\nFROM Selecionados AS prod\nOUTER APPLY (SELECT TOP (1) p.Preco FROM Prod_Serv_Precos AS p\n             WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @TabelaEscolhida\n               AND p.Inativo = 0 AND p.Preco > 0) AS escolhido\nLEFT JOIN Vendas AS venda ON venda.Produto_Ordem = prod.Ordem",
       "sql_contagem": "WITH Elegiveis AS (\n    SELECT prod.Ordem, prod.Codigo, prod.Nome, prod.Tipo,\n           prod.Ordem_Classe, prod.Ordem_Subclasse, prod.Ordem_Familia\n    FROM Prod_Serv AS prod\n    WHERE prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n      AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\n      AND EXISTS (SELECT 1 FROM Filiais AS fil WHERE fil.Codigo = @CodigoFilial)\n      AND EXISTS (SELECT 1 FROM #FotosValidas AS foto\n                  WHERE foto.Produto_Ordem = prod.Ordem)\n      AND EXISTS (SELECT 1 FROM Prod_Serv_Precos AS preco\n                  WHERE preco.Ordem_Prod_Serv = prod.Ordem\n                    AND preco.Inativo = 0 AND preco.Preco > 0\n                    AND preco.Ordem_Tabela_Preco IN (@Tabela_01, @Tabela_02, @Tabela_03, @Tabela_04, @Tabela_05, @Tabela_06, @Tabela_07, @Tabela_08))\n      AND (prod.Tipo = 'N' OR EXISTS (\n          SELECT 1 FROM Prod_Serv_Grade AS grade\n          WHERE grade.Ordem_Prod_Serv = prod.Ordem\n            AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0))\n)\nSELECT COUNT(*) FROM Elegiveis AS prod\nLEFT JOIN Classes AS cla ON cla.Ordem = prod.Ordem_Classe\nLEFT JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse\nLEFT JOIN Familias AS fam ON fam.Ordem = prod.Ordem_Familia\nWHERE (@ClasseOrdem IS NULL OR prod.Ordem_Classe = @ClasseOrdem)\n      AND (@SubclasseOrdem IS NULL OR prod.Ordem_Subclasse = @SubclasseOrdem)\n      AND (@FamiliaOrdem IS NULL OR prod.Ordem_Familia = @FamiliaOrdem)\n      AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) AND (@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL)\n           OR (prod.Tipo = 'G' AND EXISTS (\n               SELECT 1 FROM Prod_Serv_Grade AS variante\n               WHERE variante.Ordem_Prod_Serv = prod.Ordem\n                 AND variante.Inativo = 0 AND variante.Bloqueado_Venda = 0\n                 AND ((@CorOrdem_01 IS NULL AND @CorOrdem_02 IS NULL AND @CorOrdem_03 IS NULL AND @CorOrdem_04 IS NULL) OR variante.Ordem_Cor IN (@CorOrdem_01, @CorOrdem_02, @CorOrdem_03, @CorOrdem_04))\n                 AND ((@TamanhoOrdem_01 IS NULL AND @TamanhoOrdem_02 IS NULL AND @TamanhoOrdem_03 IS NULL AND @TamanhoOrdem_04 IS NULL) OR variante.Ordem_Tamanho IN (@TamanhoOrdem_01, @TamanhoOrdem_02, @TamanhoOrdem_03, @TamanhoOrdem_04)))))\n      AND (@Busca IS NULL OR CONVERT(varchar(60), prod.Codigo) LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR prod.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR cla.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR sub.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%'\n           OR fam.Nome LIKE '%' + REPLACE(REPLACE(REPLACE(@Busca, '[', '[[]'), '%', '[%]'), '_', '[_]') + '%')\n      ",
       "parametros": [
         {
@@ -4582,6 +4582,383 @@
       "max_linhas": 1,
       "timeout_ms": 2000,
       "uso_interno": true
+    },
+    "catalogo_conferir_carrinho": {
+      "sql": "WITH Itens AS (\n    SELECT v.Posicao, v.Produto_Ordem, v.Variacao_Ordem\n    FROM (VALUES (1, @Produto_01, @Variacao_01),(2, @Produto_02, @Variacao_02),(3, @Produto_03, @Variacao_03),(4, @Produto_04, @Variacao_04),(5, @Produto_05, @Variacao_05),(6, @Produto_06, @Variacao_06),(7, @Produto_07, @Variacao_07),(8, @Produto_08, @Variacao_08),(9, @Produto_09, @Variacao_09),(10, @Produto_10, @Variacao_10),(11, @Produto_11, @Variacao_11),(12, @Produto_12, @Variacao_12),(13, @Produto_13, @Variacao_13),(14, @Produto_14, @Variacao_14),(15, @Produto_15, @Variacao_15),(16, @Produto_16, @Variacao_16),(17, @Produto_17, @Variacao_17),(18, @Produto_18, @Variacao_18),(19, @Produto_19, @Variacao_19),(20, @Produto_20, @Variacao_20),(21, @Produto_21, @Variacao_21),(22, @Produto_22, @Variacao_22),(23, @Produto_23, @Variacao_23),(24, @Produto_24, @Variacao_24)) AS v(Posicao, Produto_Ordem, Variacao_Ordem)\n    WHERE v.Produto_Ordem IS NOT NULL\n), Filial AS (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilial)\nSELECT item.Posicao, item.Produto_Ordem, item.Variacao_Ordem,\n       CASE WHEN prod.Ordem IS NULL THEN 0 ELSE 1 END AS Ativo,\n       CONVERT(varchar(40), CAST(preco.Preco AS decimal(19,4))) AS Preco,\n       CASE WHEN esto.Invalido = 1 THEN 1 ELSE 0 END AS Estoque_Invalido,\n       CASE WHEN esto.Invalido = 0 AND esto.Qtde_Estoque_Atual > 0 AND (prod.Tipo = 'N' OR grade.Ordem IS NOT NULL) THEN 1 ELSE 0 END AS Disponivel\nFROM Itens AS item\nCROSS JOIN Filial AS filial\nLEFT JOIN Prod_Serv AS prod ON prod.Ordem = item.Produto_Ordem\n     AND prod.Tipo IN ('N', 'G') AND prod.Inativo = 0 AND prod.Bloqueado_Venda = 0\n     AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarClasse_01), (@OcultarClasse_02), (@OcultarClasse_03), (@OcultarClasse_04), (@OcultarClasse_05), (@OcultarClasse_06), (@OcultarClasse_07), (@OcultarClasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Classe)\n     AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarSubclasse_01), (@OcultarSubclasse_02), (@OcultarSubclasse_03), (@OcultarSubclasse_04), (@OcultarSubclasse_05), (@OcultarSubclasse_06), (@OcultarSubclasse_07), (@OcultarSubclasse_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Subclasse)\n     AND NOT EXISTS (SELECT 1 FROM (VALUES (@OcultarFamilia_01), (@OcultarFamilia_02), (@OcultarFamilia_03), (@OcultarFamilia_04), (@OcultarFamilia_05), (@OcultarFamilia_06), (@OcultarFamilia_07), (@OcultarFamilia_08)) AS oculto(Ordem) WHERE oculto.Ordem = prod.Ordem_Familia)\nLEFT JOIN Prod_Serv_Grade AS grade ON grade.Ordem = item.Variacao_Ordem AND grade.Ordem_Prod_Serv = prod.Ordem\n     AND prod.Tipo = 'G' AND grade.Inativo = 0 AND grade.Bloqueado_Venda = 0\nOUTER APPLY (SELECT TOP (1) p.Preco FROM Prod_Serv_Precos AS p\n             WHERE p.Ordem_Prod_Serv = prod.Ordem AND p.Ordem_Tabela_Preco = @Tabela AND p.Inativo = 0 AND p.Preco > 0) AS preco\nLEFT JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem AND esto.Ordem_Filial = filial.Ordem\n     AND esto.Ordem_Edicao = 0\n     AND esto.Ordem_Cor = CASE WHEN prod.Tipo = 'G' THEN COALESCE(grade.Ordem_Cor, -1) ELSE 0 END\n     AND esto.Ordem_Tamanho = CASE WHEN prod.Tipo = 'G' THEN COALESCE(grade.Ordem_Tamanho, -1) ELSE 0 END",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Tabela",
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        {
+          "nome": "Produto_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_09",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_09",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_10",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_10",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_11",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_11",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_12",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_12",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_13",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_13",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_14",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_14",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_15",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_15",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_16",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_16",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_17",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_17",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_18",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_18",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_19",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_19",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_20",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_20",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_21",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_21",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_22",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_22",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_23",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_23",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Produto_24",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "Variacao_24",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarClasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarSubclasse_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_01",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_02",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_03",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_04",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_05",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_06",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_07",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        },
+        {
+          "nome": "OcultarFamilia_08",
+          "tipo": "inteiro",
+          "obrigatorio": false
+        }
+      ],
+      "max_linhas": 24,
+      "timeout_ms": 2000
     }
   }
 }
