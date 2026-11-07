@@ -240,4 +240,36 @@ public class CatalogoCandidatoPublicoTestes
         Assert.Equal("fotos_por_produto", excesso.Motivo);
         Assert.Equal(9, excesso.LinhasLidas);
     }
+
+    [Fact]
+    public void Indice_de_fotos_so_soma_o_texto_efetivamente_lido()
+    {
+        var texto = new string('A', 600_000);
+        var acumulador = new AcumuladorIndiceFotosPublicas();
+        // Produto 1: primeira foto lida e valida; a extra chega sem texto.
+        acumulador.Incluir(1, 10, texto.Length, texto, _ => true);
+        acumulador.Incluir(1, 11, texto.Length, null, _ => true);
+        Assert.Equal(600_000, acumulador.CaracteresLidos);
+        Assert.Equal(2, acumulador.LinhasLidas);
+
+        // Muitas extras sem texto nao estouram o volume.
+        for (var i = 2; i < 400; i++)
+        {
+            acumulador.Incluir(i, i * 10, texto.Length, null, _ => true);
+        }
+        Assert.Equal(600_000, acumulador.CaracteresLidos);
+    }
+
+    [Fact]
+    public void Indice_de_fotos_ainda_recusa_volume_de_texto_lido_acima_do_teto()
+    {
+        var texto = new string('A', 1_000_000);
+        var acumulador = new AcumuladorIndiceFotosPublicas();
+        var excesso = Assert.Throws<IndiceFotosCapacidadeException>(() =>
+        {
+            for (var produto = 1; produto <= 200; produto++)
+                acumulador.Incluir(produto, produto, texto.Length, texto, _ => false);
+        });
+        Assert.Equal("volume_texto", excesso.Motivo);
+    }
 }
