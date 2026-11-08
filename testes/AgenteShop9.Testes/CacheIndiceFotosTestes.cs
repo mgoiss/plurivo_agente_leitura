@@ -450,6 +450,34 @@ public class CacheIndiceFotosTestes
         Assert.Equal(0, naFila.Construcoes);
     }
 
+    [Fact]
+    public async Task Desligar_nunca_deixa_a_fila_construir_mesmo_quando_a_vaga_chega_junto()
+    {
+        // A vaga do semaforo e o cancelamento disputam a mesma espera; sem a
+        // checagem depois da vaga, ~2,5% das rodadas deixavam a fila construir.
+        for (var rodada = 0; rodada < 400; rodada++)
+        {
+            var relogio = new Relogio();
+            var cache = Novo(relogio);
+            var ocupada = new Fonte { Portao = NovoPortao() };
+            var naFila = new Fonte();
+
+            var primeiro = cache.Aquecer("a", ocupada.Construtor, null);
+            await Esperar(() => ocupada.Construcoes == 1);
+            var segundo = cache.Aquecer("b", naFila.Construtor, null);
+            var requisicao = cache.ObterAsync("b", naFila.Construtor, null, default);
+            await Task.Delay(2);
+
+            cache.Dispose();
+
+            await primeiro.WaitAsync(TimeSpan.FromSeconds(5));
+            await segundo.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => requisicao.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.Equal(0, naFila.Construcoes);
+        }
+    }
+
     private static TaskCompletionSource NovoPortao() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private static async Task<CacheIndiceFotos> ExpiradoComLeitor(Relogio relogio, Fonte fonte, OpcoesCacheIndiceFotos opcoes)

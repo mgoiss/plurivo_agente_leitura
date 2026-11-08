@@ -234,6 +234,9 @@ public sealed class CacheIndiceFotos(
         await _umaPorVez.WaitAsync(ct);
         try
         {
+            // Quem estava na fila pode receber a vaga no mesmo instante em que o
+            // cache e desligado (a espera ganha a corrida contra o cancelamento).
+            ct.ThrowIfCancellationRequested();
             return await AtualizarSerializadoAsync(chave, construir, impressao, previa, ct);
         }
         finally
