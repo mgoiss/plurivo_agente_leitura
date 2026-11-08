@@ -158,9 +158,14 @@ public sealed class AcumuladorIndiceFotosPublicas
             throw new IndiceFotosCapacidadeException("fotos_por_produto", _linhas, _caracteres);
         if (caracteres < 1 || caracteres > IndiceFotosPublicas.MaxCaracteres)
             throw new IndiceFotosCapacidadeException("tamanho_foto", _linhas, _caracteres);
-        _caracteres += caracteres;
-        if (_caracteres > MaxCaracteres)
-            throw new IndiceFotosCapacidadeException("volume_texto", _linhas, _caracteres);
+        // So o texto que veio do banco ocupa memoria: foto extra de produto que
+        // ja tem foto valida chega sem texto (`PrecisaLerFoto`) e nao entra na soma.
+        if (fotoBase64 is not null)
+        {
+            _caracteres += caracteres;
+            if (_caracteres > MaxCaracteres)
+                throw new IndiceFotosCapacidadeException("volume_texto", _linhas, _caracteres);
+        }
         IndiceFotosPublicas.TentarIncluir(
             Fotos, produtoOrdem, imagemOrdem, fotoBase64, validar);
     }
