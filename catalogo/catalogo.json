@@ -1,5 +1,5 @@
 {
-  "versao_catalogo": 38,
+  "versao_catalogo": 40,
   "operacoes": {
     "listar_produtos_estoque": {
       "sql": "SELECT prod.Ordem, prod.Codigo, prod.Nome, un.Codigo AS cod_un, un.Nome AS nome_un, clas.Codigo AS cod_classe, clas.Nome AS nome_classe, sub.Codigo AS cod_subclasse, sub.Nome AS nome_subclasse, esto.Qtde_Estoque_Atual FROM Prod_Serv AS prod INNER JOIN Unidades_Venda AS un ON un.Ordem = prod.Ordem_Unidade_Venda INNER JOIN Classes AS clas ON clas.Ordem = prod.Ordem_Classe INNER JOIN Subclasses AS sub ON sub.Ordem = prod.Ordem_Subclasse INNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem WHERE esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilial) AND (@Codigo IS NULL OR prod.Codigo = @Codigo) AND (@Nome IS NULL OR prod.Nome LIKE '%' + @Nome + '%') AND (@CodigoClasse IS NULL OR clas.Codigo = @CodigoClasse) AND (@CodigoSubclasse IS NULL OR sub.Codigo = @CodigoSubclasse) AND (@EstoqueMinimo IS NULL OR esto.Qtde_Estoque_Atual >= @EstoqueMinimo) AND (@EstoqueMaximo IS NULL OR esto.Qtde_Estoque_Atual <= @EstoqueMaximo) AND (@EstoqueMaiorQue IS NULL OR esto.Qtde_Estoque_Atual > @EstoqueMaiorQue) AND (@EstoqueMenorQue IS NULL OR esto.Qtde_Estoque_Atual < @EstoqueMenorQue)",
@@ -136,7 +136,7 @@
       "timeout_ms": 30000
     },
     "financeiro_recebimentos_cartao_pix_em_aberto": {
-      "sql": "SELECT Filiais.Codigo AS Cod_Filial, Filiais.Nome AS Nome_Filial, fin.Ordem AS Ordem_Financeiro, fin.Pagar_Receber, fin.Tipo_Conta, fin.Situacao, fin.Codigo_Sequencia, fin.Parcela_Descricao, fin.Descricao, fin.Data_Emissao, fin.Valor_Base, fin.Valor_Final_Calculado, fin.Valor_Taxa, fin.TEF_SNSU, adm.Codigo AS Cod_Administradora, adm.Nome AS Nome_Administradora, band.Codigo AS Cod_Bandeira, band.Nome AS Nome_Bandeira, fun.Codigo AS Cod_Vendedor, fun.Nome AS Nome_Vendedor, CASE WHEN CHARINDEX('/', fin.Parcela_Descricao) > 0 THEN TRY_CAST(LEFT(fin.Parcela_Descricao, CHARINDEX('/', fin.Parcela_Descricao) - 1) AS INT) ELSE NULL END AS Parcela_Numero, CASE WHEN CHARINDEX('/', fin.Parcela_Descricao) > 0 THEN TRY_CAST(SUBSTRING(fin.Parcela_Descricao, CHARINDEX('/', fin.Parcela_Descricao) + 1, 10) AS INT) ELSE NULL END AS Parcela_Total FROM Financeiro_Contas AS fin INNER JOIN Filiais ON Filiais.Ordem = fin.Ordem_Filial INNER JOIN Funcionarios AS fun ON fun.Ordem = fin.Ordem_Vendedor1 INNER JOIN Administradoras_Cartao AS adm ON adm.Ordem = fin.Cartao_Ordem_Administradora INNER JOIN Bandeiras_Cartao AS band ON band.Ordem = adm.Ordem_Bandeira WHERE fin.Pagar_Receber = 'R' AND fin.Tipo_Conta IN ('D','C','O') AND (@Situacao IS NULL OR ',' + @Situacao + ',' LIKE '%,' + fin.Situacao + ',%') AND Filiais.Codigo = @CodigoFilial AND fin.Data_Emissao >= @inicio AND fin.Data_Emissao < DATEADD(DAY, 1, @fim)",
+      "sql": "SELECT Filiais.Codigo AS Cod_Filial, Filiais.Nome AS Nome_Filial, fin.Ordem AS Ordem_Financeiro, fin.Pagar_Receber, fin.Tipo_Conta, fin.Situacao, fin.Codigo_Sequencia, fin.Parcela_Descricao, fin.Descricao, fin.Data_Emissao, fin.Valor_Base, fin.Valor_Final_Calculado, fin.Valor_Taxa, fin.TEF_SNSU, adm.Codigo AS Cod_Administradora, adm.Nome AS Nome_Administradora, band.Codigo AS Cod_Bandeira, band.Nome AS Nome_Bandeira, fun.Codigo AS Cod_Vendedor, fun.Nome AS Nome_Vendedor, CASE WHEN CHARINDEX('/', fin.Parcela_Descricao) > 0 THEN TRY_CAST(LEFT(fin.Parcela_Descricao, CHARINDEX('/', fin.Parcela_Descricao) - 1) AS INT) ELSE NULL END AS Parcela_Numero, CASE WHEN CHARINDEX('/', fin.Parcela_Descricao) > 0 THEN TRY_CAST(SUBSTRING(fin.Parcela_Descricao, CHARINDEX('/', fin.Parcela_Descricao) + 1, 10) AS INT) ELSE NULL END AS Parcela_Total, fin.Cartao_Lote AS Cartao_Lote, efet.Cod_Efetivador, efet.Nome_Efetivador FROM Financeiro_Contas AS fin INNER JOIN Filiais ON Filiais.Ordem = fin.Ordem_Filial INNER JOIN Funcionarios AS fun ON fun.Ordem = fin.Ordem_Vendedor1 INNER JOIN Administradoras_Cartao AS adm ON adm.Ordem = fin.Cartao_Ordem_Administradora INNER JOIN Bandeiras_Cartao AS band ON band.Ordem = adm.Ordem_Bandeira OUTER APPLY (SELECT TOP 1 funef.Codigo AS Cod_Efetivador, funef.Nome AS Nome_Efetivador FROM Movimento AS movef INNER JOIN Funcionarios AS funef ON funef.Ordem = movef.Ordem_Funcionario_Efetivacao_Financeiro WHERE movef.Ordem_Filial = fin.Ordem_Filial AND movef.Tipo_Operacao = 'VND' AND movef.Efetivado_Estoque = 1 AND movef.Desefetivado_Estoque = 0 AND movef.Sequencia = fin.Codigo_Sequencia ORDER BY movef.Ordem) AS efet WHERE fin.Pagar_Receber = 'R' AND fin.Tipo_Conta IN ('D','C','O') AND (@Situacao IS NULL OR ',' + @Situacao + ',' LIKE '%,' + fin.Situacao + ',%') AND Filiais.Codigo = @CodigoFilial AND fin.Data_Emissao >= @inicio AND fin.Data_Emissao < DATEADD(DAY, 1, @fim)",
       "sql_contagem": "SELECT COUNT(*) FROM Financeiro_Contas AS fin INNER JOIN Filiais ON Filiais.Ordem = fin.Ordem_Filial INNER JOIN Funcionarios AS fun ON fun.Ordem = fin.Ordem_Vendedor1 INNER JOIN Administradoras_Cartao AS adm ON adm.Ordem = fin.Cartao_Ordem_Administradora INNER JOIN Bandeiras_Cartao AS band ON band.Ordem = adm.Ordem_Bandeira WHERE fin.Pagar_Receber = 'R' AND fin.Tipo_Conta IN ('D','C','O') AND (@Situacao IS NULL OR ',' + @Situacao + ',' LIKE '%,' + fin.Situacao + ',%') AND Filiais.Codigo = @CodigoFilial AND fin.Data_Emissao >= @inicio AND fin.Data_Emissao < DATEADD(DAY, 1, @fim)",
       "parametros": [
         {
@@ -5092,6 +5092,123 @@
       "tamanho_pagina_padrao": 200,
       "tamanho_pagina_max": 200,
       "periodo_max_dias": 31,
+      "max_linhas": 10000,
+      "timeout_ms": 30000
+    },
+    "conciliacao_dinheiro_transferencia_por_caixa_dia": {
+      "sql": "/* Conciliação com diagnóstico (Etapa 2): dinheiro e transferência bancária das vendas efetivadas, por quem\n   efetivou a venda no financeiro (Movimento.Ordem_Funcionario_Efetivacao_Financeiro). Dinheiro líquido =\n   Dinheiro_Valor - Valor_Troco (Dinheiro_Valor inclui o troco entregue). Transferência = Conta_Bancaria_Valor da\n   tabela de formas de recebimento (a mesma 'Transferência Bancária' de emissao_vendas_por_forma_pagamento; PIX, TED, DOC\n   e outros Tipo_Documento entram juntos). O dia é Data_Efetivado_Estoque, como na fila de emissão. Só leitura. */\nSELECT fil.Codigo AS Cod_Filial, CAST(mov.Data_Efetivado_Estoque AS date) AS Dia, efet.Codigo AS Cod_Efetivador, efet.Nome AS Nome_Efetivador,\n       CAST(SUM(ISNULL(forma.Dinheiro_Valor, 0) - ISNULL(forma.Valor_Troco, 0)) AS decimal(19,2)) AS Dinheiro_Liquido,\n       CAST(SUM(ISNULL(forma.Conta_Bancaria_Valor, 0)) AS decimal(19,2)) AS Transferencia_Valor,\n       COUNT(DISTINCT mov.Ordem) AS Qtd_Vendas\nFROM Movimento AS mov\nINNER JOIN Operacoes AS op ON op.Ordem = mov.Ordem_Operacao\nINNER JOIN Filiais AS fil ON fil.Ordem = mov.Ordem_Filial\nINNER JOIN Financeiro_Formas_Recebimento_Pagamento_V2 AS forma ON forma.Ordem_Movimento = mov.Ordem\nLEFT JOIN Funcionarios AS efet ON efet.Ordem = mov.Ordem_Funcionario_Efetivacao_Financeiro\nWHERE op.Movimenta_Dinheiro = 1\n  AND ISNULL(forma.Invalido, 0) = 0\n  AND mov.Desefetivado_Estoque = 0\n  AND mov.Efetivado_Estoque = 1\n  AND mov.Tipo_Operacao = 'VND'\n  AND fil.Codigo = @CodigoFilial\n  AND mov.Data_Efetivado_Estoque >= @inicio\n  AND mov.Data_Efetivado_Estoque < DATEADD(DAY, 1, @fim)\n  AND (ISNULL(forma.Dinheiro_Valor, 0) - ISNULL(forma.Valor_Troco, 0) <> 0 OR ISNULL(forma.Conta_Bancaria_Valor, 0) <> 0)\nGROUP BY fil.Codigo, CAST(mov.Data_Efetivado_Estoque AS date), efet.Codigo, efet.Nome",
+      "sql_contagem": "SELECT COUNT(*) FROM (\nSELECT 1 AS n\nFROM Movimento AS mov\nINNER JOIN Operacoes AS op ON op.Ordem = mov.Ordem_Operacao\nINNER JOIN Filiais AS fil ON fil.Ordem = mov.Ordem_Filial\nINNER JOIN Financeiro_Formas_Recebimento_Pagamento_V2 AS forma ON forma.Ordem_Movimento = mov.Ordem\nLEFT JOIN Funcionarios AS efet ON efet.Ordem = mov.Ordem_Funcionario_Efetivacao_Financeiro\nWHERE op.Movimenta_Dinheiro = 1\n  AND ISNULL(forma.Invalido, 0) = 0\n  AND mov.Desefetivado_Estoque = 0\n  AND mov.Efetivado_Estoque = 1\n  AND mov.Tipo_Operacao = 'VND'\n  AND fil.Codigo = @CodigoFilial\n  AND mov.Data_Efetivado_Estoque >= @inicio\n  AND mov.Data_Efetivado_Estoque < DATEADD(DAY, 1, @fim)\n  AND (ISNULL(forma.Dinheiro_Valor, 0) - ISNULL(forma.Valor_Troco, 0) <> 0 OR ISNULL(forma.Conta_Bancaria_Valor, 0) <> 0)\nGROUP BY fil.Codigo, CAST(mov.Data_Efetivado_Estoque AS date), efet.Codigo, efet.Nome\n) AS consulta_contagem",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        },
+        {
+          "nome": "inicio",
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        {
+          "nome": "fim",
+          "tipo": "data",
+          "obrigatorio": true
+        }
+      ],
+      "ordenacao": {
+        "colunas": {
+          "dia": "CAST(mov.Data_Efetivado_Estoque AS date)",
+          "efetivador": "efet.Nome"
+        },
+        "padrao": {
+          "coluna": "dia",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "fil.Codigo",
+        "CAST(mov.Data_Efetivado_Estoque AS date)",
+        "efet.Codigo",
+        "efet.Nome"
+      ],
+      "tamanho_pagina_padrao": 100,
+      "tamanho_pagina_max": 200,
+      "periodo_max_dias": 92,
+      "max_linhas": 10000,
+      "timeout_ms": 30000
+    },
+    "conciliacao_dinheiro_transferencia_vendas": {
+      "sql": "/* Conciliação com diagnóstico (Etapa 2): dinheiro e transferência bancária das vendas efetivadas, uma linha por venda, com quem\n   efetivou a venda no financeiro (Movimento.Ordem_Funcionario_Efetivacao_Financeiro). Dinheiro líquido =\n   Dinheiro_Valor - Valor_Troco (Dinheiro_Valor inclui o troco entregue). Transferência = Conta_Bancaria_Valor da\n   tabela de formas de recebimento (a mesma 'Transferência Bancária' de emissao_vendas_por_forma_pagamento; PIX, TED, DOC\n   e outros Tipo_Documento entram juntos). O dia é Data_Efetivado_Estoque, como na fila de emissão. Só leitura. */\nSELECT mov.Ordem AS Ordem_Movimento, mov.Sequencia AS Seq, fil.Codigo AS Cod_Filial, mov.Data_Efetivado_Estoque AS Data_Venda,\n       efet.Codigo AS Cod_Efetivador, efet.Nome AS Nome_Efetivador,\n       CAST(SUM(ISNULL(forma.Dinheiro_Valor, 0) - ISNULL(forma.Valor_Troco, 0)) AS decimal(19,2)) AS Dinheiro_Liquido,\n       CAST(SUM(ISNULL(forma.Conta_Bancaria_Valor, 0)) AS decimal(19,2)) AS Transferencia_Valor\nFROM Movimento AS mov\nINNER JOIN Operacoes AS op ON op.Ordem = mov.Ordem_Operacao\nINNER JOIN Filiais AS fil ON fil.Ordem = mov.Ordem_Filial\nINNER JOIN Financeiro_Formas_Recebimento_Pagamento_V2 AS forma ON forma.Ordem_Movimento = mov.Ordem\nLEFT JOIN Funcionarios AS efet ON efet.Ordem = mov.Ordem_Funcionario_Efetivacao_Financeiro\nWHERE op.Movimenta_Dinheiro = 1\n  AND ISNULL(forma.Invalido, 0) = 0\n  AND mov.Desefetivado_Estoque = 0\n  AND mov.Efetivado_Estoque = 1\n  AND mov.Tipo_Operacao = 'VND'\n  AND fil.Codigo = @CodigoFilial\n  AND mov.Data_Efetivado_Estoque >= @inicio\n  AND mov.Data_Efetivado_Estoque < DATEADD(DAY, 1, @fim)\n  AND (ISNULL(forma.Dinheiro_Valor, 0) - ISNULL(forma.Valor_Troco, 0) <> 0 OR ISNULL(forma.Conta_Bancaria_Valor, 0) <> 0)\nGROUP BY mov.Ordem, mov.Sequencia, fil.Codigo, mov.Data_Efetivado_Estoque, efet.Codigo, efet.Nome",
+      "sql_contagem": "SELECT COUNT(*) FROM (\nSELECT 1 AS n\nFROM Movimento AS mov\nINNER JOIN Operacoes AS op ON op.Ordem = mov.Ordem_Operacao\nINNER JOIN Filiais AS fil ON fil.Ordem = mov.Ordem_Filial\nINNER JOIN Financeiro_Formas_Recebimento_Pagamento_V2 AS forma ON forma.Ordem_Movimento = mov.Ordem\nLEFT JOIN Funcionarios AS efet ON efet.Ordem = mov.Ordem_Funcionario_Efetivacao_Financeiro\nWHERE op.Movimenta_Dinheiro = 1\n  AND ISNULL(forma.Invalido, 0) = 0\n  AND mov.Desefetivado_Estoque = 0\n  AND mov.Efetivado_Estoque = 1\n  AND mov.Tipo_Operacao = 'VND'\n  AND fil.Codigo = @CodigoFilial\n  AND mov.Data_Efetivado_Estoque >= @inicio\n  AND mov.Data_Efetivado_Estoque < DATEADD(DAY, 1, @fim)\n  AND (ISNULL(forma.Dinheiro_Valor, 0) - ISNULL(forma.Valor_Troco, 0) <> 0 OR ISNULL(forma.Conta_Bancaria_Valor, 0) <> 0)\nGROUP BY mov.Ordem, mov.Sequencia, fil.Codigo, mov.Data_Efetivado_Estoque, efet.Codigo, efet.Nome\n) AS consulta_contagem",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        },
+        {
+          "nome": "inicio",
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        {
+          "nome": "fim",
+          "tipo": "data",
+          "obrigatorio": true
+        }
+      ],
+      "ordenacao": {
+        "colunas": {
+          "data_venda": "mov.Data_Efetivado_Estoque",
+          "sequencia": "mov.Sequencia"
+        },
+        "padrao": {
+          "coluna": "data_venda",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "mov.Ordem",
+        "mov.Sequencia",
+        "fil.Codigo",
+        "mov.Data_Efetivado_Estoque",
+        "efet.Codigo",
+        "efet.Nome"
+      ],
+      "tamanho_pagina_padrao": 100,
+      "tamanho_pagina_max": 200,
+      "periodo_max_dias": 92,
+      "max_linhas": 10000,
+      "timeout_ms": 30000
+    },
+    "conciliacao_caixas_funcionarios": {
+      "sql": "/* Conciliação com diagnóstico (Etapa 2): relação caixa x funcionário do Shop9 (Funcionarios_Caixas_Padrao), com a filial\n   do caixa. Serve para dizer de quem é o caixa de uma venda. Só leitura. */\nSELECT cx.Codigo AS Cod_Caixa, cx.Nome AS Nome_Caixa, Filiais.Codigo AS Cod_Filial, Filiais.Nome AS Nome_Filial,\n       fun.Codigo AS Cod_Funcionario, fun.Nome AS Nome_Funcionario\nFROM Funcionarios_Caixas_Padrao AS funCx\nINNER JOIN Funcionarios AS fun ON fun.Ordem = funCx.Ordem_Funcionario\nINNER JOIN Caixas AS cx ON cx.Ordem = funCx.Ordem_Caixa\nINNER JOIN Filiais ON Filiais.Ordem = cx.Ordem_Filial\nWHERE Filiais.Codigo = @CodigoFilial",
+      "sql_contagem": "SELECT COUNT(*) FROM Funcionarios_Caixas_Padrao AS funCx\nINNER JOIN Funcionarios AS fun ON fun.Ordem = funCx.Ordem_Funcionario\nINNER JOIN Caixas AS cx ON cx.Ordem = funCx.Ordem_Caixa\nINNER JOIN Filiais ON Filiais.Ordem = cx.Ordem_Filial\nWHERE Filiais.Codigo = @CodigoFilial",
+      "parametros": [
+        {
+          "nome": "CodigoFilial",
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "e_filial": true
+        }
+      ],
+      "ordenacao": {
+        "colunas": {
+          "caixa": "cx.Codigo",
+          "funcionario": "fun.Nome"
+        },
+        "padrao": {
+          "coluna": "caixa",
+          "direcao": "asc"
+        }
+      },
+      "desempate": [
+        "funCx.Ordem"
+      ],
+      "tamanho_pagina_padrao": 100,
+      "tamanho_pagina_max": 200,
       "max_linhas": 10000,
       "timeout_ms": 30000
     }
