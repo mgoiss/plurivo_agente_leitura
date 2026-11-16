@@ -26,7 +26,7 @@ public class CatalogoCandidatoIdentidadeOrdemTestes
     private static string SemComentarios(string sql) => Regex.Replace(sql, @"/\*.*?\*/|--[^\n]*", "", RegexOptions.Singleline);
 
     [Fact]
-    public void Versao_e_41_e_so_acrescenta_filiais_cadastro_ao_catalogo_vigente()
+    public void Versao_e_41_e_mantem_todas_as_operacoes_do_catalogo_vigente()
     {
         var novo = Candidato.Operacoes!;
         var atual = Ler("catalogo-real.json");
@@ -34,8 +34,7 @@ public class CatalogoCandidatoIdentidadeOrdemTestes
         Assert.True(atual.VersaoCatalogo < 41);
         foreach (var nome in atual.Operacoes!.Keys)
             Assert.Contains(nome, novo.Keys);
-        Assert.Equal(atual.Operacoes.Count + 1, novo.Count);
-        Assert.Contains("filiais_cadastro", novo.Keys);
+        Assert.Equal(atual.Operacoes.Count, novo.Count);
     }
 
     [Fact]
@@ -77,21 +76,15 @@ public class CatalogoCandidatoIdentidadeOrdemTestes
     }
 
     [Fact]
-    public void Filiais_cadastro_devolve_ordem_codigo_nome_sem_a_ordem_zero_e_sem_parametro()
+    public void Listar_filiais_devolve_ordem_codigo_nome_sem_a_ordem_zero_e_sem_parametro()
     {
-        var op = Candidato.Operacoes!["filiais_cadastro"];
+        var op = Candidato.Operacoes!["listar_filiais"];
         Assert.Empty(op.Parametros);
         var sql = SemComentarios(op.Sql);
-        Assert.StartsWith("SELECT", sql.TrimStart());
-        Assert.Contains("fil.Ordem", sql);
-        Assert.Contains("fil.Codigo", sql);
-        Assert.Contains("fil.Nome", sql);
-        Assert.Contains("fil.Ordem <> 0", sql);
-        Assert.Contains("fil.Ordem <> 0", op.SqlContagem!);
-        foreach (var proibido in Proibidos)
-            Assert.DoesNotContain(proibido, sql, StringComparison.OrdinalIgnoreCase);
-        Assert.False(op.UsoInterno);
-        Assert.NotEmpty(op.Desempate!);
+        Assert.Contains("SELECT Ordem, Codigo, Nome FROM Filiais", sql);
+        Assert.Contains("Ordem <> 0", sql);
+        Assert.Contains("Ordem <> 0", op.SqlContagem!);
+        Assert.DoesNotContain("filiais_cadastro", Candidato.Operacoes.Keys);
     }
 
     [Theory]

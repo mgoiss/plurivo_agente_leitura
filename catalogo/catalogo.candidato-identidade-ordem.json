@@ -5211,28 +5211,6 @@
       "tamanho_pagina_max": 200,
       "max_linhas": 10000,
       "timeout_ms": 30000
-    },
-    "filiais_cadastro": {
-      "sql": "SELECT fil.Ordem, fil.Codigo, fil.Nome FROM Filiais AS fil WHERE fil.Ordem <> 0",
-      "sql_contagem": "SELECT COUNT(*) FROM Filiais AS fil WHERE fil.Ordem <> 0",
-      "parametros": [],
-      "ordenacao": {
-        "colunas": {
-          "ordem": "fil.Ordem",
-          "codigo": "fil.Codigo"
-        },
-        "padrao": {
-          "coluna": "ordem",
-          "direcao": "asc"
-        }
-      },
-      "desempate": [
-        "fil.Ordem"
-      ],
-      "tamanho_pagina_padrao": 50,
-      "tamanho_pagina_max": 200,
-      "max_linhas": 10000,
-      "timeout_ms": 30000
     }
   }
 }
