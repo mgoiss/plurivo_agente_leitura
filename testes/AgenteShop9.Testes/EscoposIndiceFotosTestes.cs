@@ -9,7 +9,7 @@ public class EscoposIndiceFotosTestes
     {
         var d = new Dictionary<string, JsonElement>
         {
-            ["CodigoFilial"] = JsonSerializer.SerializeToElement(filial),
+            ["OrdemFilial"] = JsonSerializer.SerializeToElement(filial),
         };
         for (var i = 0; i < tabelas.Length; i++)
             d[$"Tabela_{i + 1:00}"] = JsonSerializer.SerializeToElement(tabelas[i]);
