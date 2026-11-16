@@ -124,12 +124,49 @@ public class CatalogoCandidatoIdentidadeOrdemTestes
     }
 
     [Fact]
-    public void Caixas_funcionarios_filtra_pela_filial_do_caixa()
+    public void Caixas_funcionarios_e_cadastro_sem_movimento_e_filtra_pela_filial_do_caixa_por_excecao()
     {
+        // Excecao justificada: Funcionarios_Caixas_Padrao e cadastro (caixa x funcionario) e a operacao nao toca
+        // Movimento; so existe a filial do caixa. As demais operacoes conciliacao_* filtram por Movimento.Ordem_Filial.
         var op = Candidato.Operacoes![Caixas];
+        Assert.DoesNotContain("Movimento", op.Sql);
         Assert.Contains("cx.Ordem_Filial = @OrdemFilial", op.Sql);
         Assert.Contains("cx.Ordem_Filial = @OrdemFilial", op.SqlContagem!);
         Assert.Contains("Filiais.Ordem AS Ordem_Filial", op.Sql);
+    }
+
+    [Fact]
+    public void Conciliacao_que_le_movimento_nunca_filtra_pela_filial_do_financeiro_ou_do_caixa()
+    {
+        foreach (var (nome, op) in Candidato.Operacoes!.Where(o => o.Key.StartsWith("conciliacao_", StringComparison.Ordinal)
+                                                                  && o.Value.Sql.Contains("Movimento", StringComparison.Ordinal)))
+            foreach (var sql in new[] { SemComentarios(op.Sql), SemComentarios(op.SqlContagem!) })
+            {
+                Assert.Contains("mov.Ordem_Filial = @OrdemFilial", sql);
+                Assert.DoesNotContain("fin.Ordem_Filial", sql);
+                Assert.DoesNotContain("cx.Ordem_Filial", sql);
+            }
+    }
+
+    [Fact]
+    public void Toda_operacao_que_devolve_filial_traz_Ordem_Filial_como_identidade()
+    {
+        var devolvem = 0;
+        foreach (var (nome, op) in Candidato.Operacoes!)
+        {
+            var sql = SemComentarios(op.Sql);
+            if (nome == "listar_filiais")
+            {
+                Assert.Contains("SELECT Ordem, Codigo, Nome FROM Filiais", sql);
+                devolvem++;
+                continue;
+            }
+            if (!Regex.IsMatch(sql, @"\bCod_Filial\b|\bNome_Filial\b"))
+                continue;
+            devolvem++;
+            Assert.True(Regex.IsMatch(sql, @"\bAS Ordem_Filial\b"), $"{nome} devolve filial sem Ordem_Filial");
+        }
+        Assert.True(devolvem >= 8);
     }
 
     [Fact]
