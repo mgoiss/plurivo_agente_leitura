@@ -32,14 +32,14 @@ INNER JOIN (
     INNER JOIN Movimento AS m ON m.Ordem = mp.Ordem_Movimento
     WHERE mp.Linha_Excluida = 0
       AND m.Tipo_Operacao = 'COM'
-      AND m.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)
+      AND m.Ordem_Filial = @OrdemFilialDestino
       AND m.Data_Efetivado_Estoque >= DATEADD(DAY, -ISNULL(@DiasRecentes, 30), GETDATE())
 ) AS comp_dest ON comp_dest.Ordem_Prod_Serv = prod.Ordem
 -- A variação é a registrada na compra, mesmo sem linha/saldo atual no estoque.
 LEFT JOIN Cores AS cor ON cor.Ordem = comp_dest.Ordem_Cor
 LEFT JOIN Tamanhos AS tam ON tam.Ordem = comp_dest.Ordem_Tamanho
 LEFT JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem
-    AND esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)
+    AND esto.Ordem_Filial = @OrdemFilialDestino
     AND esto.Ordem_Cor = comp_dest.Ordem_Cor AND esto.Ordem_Tamanho = comp_dest.Ordem_Tamanho
 LEFT JOIN (
     SELECT mp.Ordem_Prod_Serv, AVG(mp.Quantidade) AS Media
@@ -47,7 +47,7 @@ LEFT JOIN (
     INNER JOIN Movimento AS m ON m.Ordem = mp.Ordem_Movimento
     WHERE mp.Linha_Excluida = 0
       AND m.Tipo_Operacao = 'VND'
-      AND m.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialOrigem)
+      AND m.Ordem_Filial = @OrdemFilialOrigem
       AND m.Ordem_Operacao = (SELECT Ordem FROM Operacoes WHERE Codigo = @CodigoOperacaoVenda)
     GROUP BY mp.Ordem_Prod_Serv
 ) AS med ON med.Ordem_Prod_Serv = prod.Ordem

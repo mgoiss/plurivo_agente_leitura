@@ -206,7 +206,7 @@ curl -sS -X POST "$BASE/api/consulta" \
     "operacao": "emissao_vendas_por_forma_pagamento",
     "servidor_ordem": "'"$SERVIDOR"'",
     "parametros": {
-      "CodigoFilial": 20,
+      "OrdemFilial": 20,
       "inicio": "2026-09-01",
       "fim": "2026-09-01"
     },
@@ -218,7 +218,7 @@ curl -sS -X POST "$BASE/api/consulta" \
   }' | python3 -m json.tool
 ```
 
-Troque `CodigoFilial`, `inicio` e `fim` pelos dados desejados. A operação
+Troque `OrdemFilial`, `inicio` e `fim` pelos dados desejados. A operação
 aceita no máximo 92 dias por consulta e até 200 linhas por página. O campo
 `total_linhas` pode ser maior que 10.000 quando há muitas páginas; reduza o
 período antes de percorrer uma fila muito grande. Para a próxima página,

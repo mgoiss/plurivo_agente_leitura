@@ -28,6 +28,6 @@ INNER JOIN (
     SELECT Ordem_Movimento, SUM(CAST(Preco_Final AS decimal(19,6))) AS Total_Itens
     FROM Movimento_Prod_Serv WHERE Linha_Excluida = 0 GROUP BY Ordem_Movimento
 ) AS totais ON totais.Ordem_Movimento = mov.Ordem
-WHERE mov.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialDestino)
+WHERE mov.Ordem_Filial = @OrdemFilialDestino
   AND mp.Linha_Excluida = 0
   AND fiscal.Data_Emissao >= @inicio AND fiscal.Data_Emissao < DATEADD(DAY, 1, @fim);

@@ -104,7 +104,7 @@ parâmetros declarados.
 ```sql
 SELECT COUNT(*) FROM Prod_Serv AS prod
 INNER JOIN ...
-WHERE esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilial)
+WHERE esto.Ordem_Filial = @OrdemFilial
   AND (@Codigo IS NULL OR prod.Codigo = @Codigo)
   AND ...
 ```
@@ -202,10 +202,10 @@ OFFSET 40 ROWS FETCH NEXT 21 ROWS ONLY   -- 40 = pagina*tamanho ; 21 = tamanho+1
 
 ```jsonc
 "minha_operacao_nova": {
-  "sql": "SELECT t.Ordem, t.Codigo, t.Nome, t.Valor FROM Tabela AS t INNER JOIN Filiais AS f ON f.Ordem = t.Ordem_Filial WHERE f.Codigo = @CodigoFilial AND (@Nome IS NULL OR t.Nome LIKE '%' + @Nome + '%')",
-  "sql_contagem": "SELECT COUNT(*) FROM Tabela AS t INNER JOIN Filiais AS f ON f.Ordem = t.Ordem_Filial WHERE f.Codigo = @CodigoFilial AND (@Nome IS NULL OR t.Nome LIKE '%' + @Nome + '%')",
+  "sql": "SELECT t.Ordem, t.Codigo, t.Nome, t.Valor FROM Tabela AS t WHERE t.Ordem_Filial = @OrdemFilial AND (@Nome IS NULL OR t.Nome LIKE '%' + @Nome + '%')",
+  "sql_contagem": "SELECT COUNT(*) FROM Tabela AS t WHERE t.Ordem_Filial = @OrdemFilial AND (@Nome IS NULL OR t.Nome LIKE '%' + @Nome + '%')",
   "parametros": [
-    { "nome": "CodigoFilial", "tipo": "inteiro", "obrigatorio": true },
+    { "nome": "OrdemFilial", "tipo": "inteiro", "obrigatorio": true },
     { "nome": "Nome", "tipo": "texto", "obrigatorio": false }
   ],
   "ordenacao": {
