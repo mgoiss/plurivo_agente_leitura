@@ -50,6 +50,13 @@ public sealed record Operacao
     /// <summary>Prepara #FotosValidas com bytes verificados antes desta consulta.</summary>
     [JsonPropertyName("usa_fotos_validadas")] public bool UsaFotosValidadas { get; init; }
 
+    /// <summary>
+    /// Prepara #VendasIndice (Produto_Ordem, Quantidade) com o indice de vendas da
+    /// filial antes desta consulta (issue #179). Sem indice pronto, a operacao
+    /// responde `ranking_indisponivel` sem tocar o banco.
+    /// </summary>
+    [JsonPropertyName("usa_vendas_indice")] public bool UsaVendasIndice { get; init; }
+
     /// <summary>Operacao assinada usada somente pelo agente, nunca por pedido remoto.</summary>
     [JsonPropertyName("uso_interno")] public bool UsoInterno { get; init; }
 
