@@ -21,14 +21,25 @@ Assinatura e chave pública: `../../ferramentas/assinatura/`.
   distribui o já assinado, e o agente verifica com a chave pública embutida.
   Anti-retrocesso: recusar `versao_catalogo` menor ou igual à atual. Spec
   3.3.1, 3.7.
-- **Vendas do catálogo leem `Movimento` pelo índice nomeado (issue #125).** O trecho de vendas de
-  `catalogo_produtos_ids`, `catalogo_inicio` e `catalogo_relacionados` usa
-  `FROM Movimento AS mov WITH (INDEX (CI_Filial_Estoque_CliFor))`. Sem a dica o SQL Server escolhe
-  `IX_Movimento_1` com key lookup (567 mil leituras) e a consulta fria passa de 1,7 s, perto do
-  timeout de 2 s (504). Não remover a dica. O índice é nativo do Shop9: conferir que existe em todo
-  cliente novo antes de ligar a vitrine (`SELECT name FROM sys.indexes WHERE object_id =
-  OBJECT_ID('Movimento') AND name = 'CI_Filial_Estoque_CliFor'`); sem ele a consulta falha com o
-  erro 308. Nunca criar índice no banco do cliente por conta própria.
+- **Vendas do catálogo leem `Movimento` pelo índice nomeado (issue #125), agora só no índice de vendas
+  (issue #179).** No catálogo v42 o trecho de vendas saiu de `catalogo_produtos_ids` e `catalogo_inicio`
+  (juntam com `#VendasIndice`) e vive em `catalogo_vendas_indice` (uso_interno, timeout 30000 ms), com
+  `FROM Movimento AS mov WITH (INDEX (CI_Filial_Estoque_CliFor))` e janela fixa de 59 dias calculada no SQL.
+  Sem a dica o SQL Server escolhe `IX_Movimento_1` com key lookup (567 mil leituras) e a consulta passa de
+  1,7 s. Não remover a dica. O índice é nativo do Shop9: conferir que existe em todo cliente novo antes de
+  ligar a vitrine (`SELECT name FROM sys.indexes WHERE object_id = OBJECT_ID('Movimento') AND name =
+  'CI_Filial_Estoque_CliFor'`); sem ele a consulta falha com o erro 308. Nunca criar índice no banco do
+  cliente por conta própria. `catalogo_relacionados` ainda lê `Movimento` direto (é coocorrência de venda,
+  não soma por produto; decisão pendente na #179).
+- **Índice de vendas: cache por filial, chave SEM versão do catálogo (issue #179, ADR 0010).**
+  `CacheIndiceVendas` guarda `(Produto_Ordem, Quantidade)` por `OrdemFilial`, renova a cada ~10 min em
+  segundo plano (stale-while-revalidate), uma construção por vez, recuo de 60 s após falha mantendo o
+  índice antigo. A chave é só a filial: diferente do índice de fotos (`CacheIndiceFotos`, chave com
+  `VersaoCatalogo`), um catálogo novo NÃO pode zerar o índice de vendas. Sem índice pronto a requisição
+  NÃO espera: dispara a construção e responde `ranking_indisponivel` (código estável usado pelo broker
+  para cair na ordem alfabética; não mudar). Só operações com `usa_vendas_indice` dependem dele;
+  `catalogo_produtos_ids_sem_vendas` (nome/preço) não. Escopos vistos ficam em
+  `dados/escopos_indice_vendas.json` para o aquecimento no boot.
 - **Validação de certificado TLS no agente é obrigatória.** Proibido desativar,
   mesmo em teste — usar certificado de teste válido. Spec 3.6.
 
