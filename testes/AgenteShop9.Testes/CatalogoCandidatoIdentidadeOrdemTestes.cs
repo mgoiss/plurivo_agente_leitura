@@ -26,15 +26,26 @@ public class CatalogoCandidatoIdentidadeOrdemTestes
     private static string SemComentarios(string sql) => Regex.Replace(sql, @"/\*.*?\*/|--[^\n]*", "", RegexOptions.Singleline);
 
     [Fact]
-    public void Versao_e_41_e_mantem_todas_as_operacoes_do_catalogo_vigente()
+    public void Vigente_e_o_v41_e_igual_ao_candidato_da_identidade_por_ordem()
     {
-        var novo = Candidato.Operacoes!;
-        var atual = Ler("catalogo-real.json");
+        var vigente = Ler("catalogo-real.json");
         Assert.Equal(41, Candidato.VersaoCatalogo);
-        Assert.True(atual.VersaoCatalogo < 41);
-        foreach (var nome in atual.Operacoes!.Keys)
-            Assert.Contains(nome, novo.Keys);
-        Assert.Equal(atual.Operacoes.Count, novo.Count);
+        Assert.Equal(41, vigente.VersaoCatalogo);
+        Assert.Equal(Candidato.Operacoes!.Count, vigente.Operacoes!.Count);
+        foreach (var (nome, op) in Candidato.Operacoes)
+            Assert.Equal(JsonSerializer.Serialize(op), JsonSerializer.Serialize(vigente.Operacoes[nome]));
+    }
+
+    [Fact]
+    public void Nenhuma_operacao_do_vigente_tem_parametro_nem_sql_com_CodigoFilial()
+    {
+        foreach (var (nome, op) in Ler("catalogo-real.json").Operacoes!)
+        {
+            Assert.DoesNotContain(op.Parametros, p => p.Nome.StartsWith("CodigoFilial", StringComparison.Ordinal));
+            Assert.DoesNotContain("CodigoFilial", op.Sql);
+            if (op.SqlContagem is not null)
+                Assert.DoesNotContain("CodigoFilial", op.SqlContagem);
+        }
     }
 
     [Fact]
@@ -47,32 +58,6 @@ public class CatalogoCandidatoIdentidadeOrdemTestes
             if (op.SqlContagem is not null)
                 Assert.DoesNotContain("CodigoFilial", op.SqlContagem);
         }
-    }
-
-    [Fact]
-    public void Todo_parametro_CodigoFilial_do_vigente_virou_OrdemFilial_com_o_mesmo_tipo_e_obrigatoriedade()
-    {
-        var atual = Ler("catalogo-real.json").Operacoes!;
-        var novo = Candidato.Operacoes!;
-        var contadas = 0;
-        foreach (var (nome, op) in atual)
-            foreach (var antigo in op.Parametros.Where(p => p.Nome.StartsWith("CodigoFilial", StringComparison.Ordinal)))
-            {
-                var nomeNovo = antigo.Nome.Replace("CodigoFilial", "OrdemFilial");
-                var depois = novo[nome].Parametros.Single(p => p.Nome == nomeNovo);
-                Assert.Equal("inteiro", depois.Tipo);
-                Assert.Equal(antigo.Obrigatorio, depois.Obrigatorio);
-                contadas++;
-            }
-        Assert.True(contadas >= 40);
-    }
-
-    [Fact]
-    public void Operacoes_sem_filial_ficam_identicas_ao_vigente()
-    {
-        var atual = Ler("catalogo-real.json").Operacoes!;
-        foreach (var (nome, op) in atual.Where(o => !o.Value.Parametros.Any(p => p.Nome.StartsWith("CodigoFilial", StringComparison.Ordinal))))
-            Assert.Equal(JsonSerializer.Serialize(op), JsonSerializer.Serialize(Candidato.Operacoes![nome]));
     }
 
     [Fact]

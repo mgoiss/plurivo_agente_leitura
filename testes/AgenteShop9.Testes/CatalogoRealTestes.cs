@@ -19,11 +19,11 @@ public class CatalogoRealTestes
         Assert.Equal(30_000, op.TimeoutMs);
         Assert.Null(op.PeriodoMaxDias);          // operacao sem faixa de datas
 
-        var filial = op.Parametros.Single(p => p.Nome == "CodigoFilial");
+        var filial = op.Parametros.Single(p => p.Nome == "OrdemFilial");
         Assert.Equal("inteiro", filial.Tipo);
         Assert.True(filial.Obrigatorio);
 
-        Assert.All(op.Parametros.Where(p => p.Nome != "CodigoFilial"), p => Assert.False(p.Obrigatorio));
+        Assert.All(op.Parametros.Where(p => p.Nome != "OrdemFilial"), p => Assert.False(p.Obrigatorio));
         Assert.Equal("texto", op.Parametros.Single(p => p.Nome == "Codigo").Tipo);
         Assert.Equal("decimal", op.Parametros.Single(p => p.Nome == "EstoqueMinimo").Tipo);
     }
@@ -50,9 +50,9 @@ public class CatalogoRealTestes
 
         // Obrigatórios: filial + as duas datas do período.
         var obrigatorios = op.Parametros.Where(p => p.Obrigatorio).Select(p => p.Nome).ToHashSet();
-        Assert.Equal(new HashSet<string> { "CodigoFilial", "inicio", "fim" }, obrigatorios);
+        Assert.Equal(new HashSet<string> { "OrdemFilial", "inicio", "fim" }, obrigatorios);
 
-        Assert.Equal("inteiro", op.Parametros.Single(p => p.Nome == "CodigoFilial").Tipo);
+        Assert.Equal("inteiro", op.Parametros.Single(p => p.Nome == "OrdemFilial").Tipo);
         Assert.Equal("data", op.Parametros.Single(p => p.Nome == "inicio").Tipo);
         Assert.Equal("data", op.Parametros.Single(p => p.Nome == "fim").Tipo);
 
@@ -90,7 +90,8 @@ public class CatalogoRealTestes
             // SQL escrito SEM TOP e SEM ORDER BY final — o agente cola os dois.
             Assert.DoesNotContain("TOP (@max_linhas", op.Sql);
             Assert.DoesNotContain("@max_linhas", op.Sql);
-            Assert.DoesNotContain("ORDER BY", op.Sql);
+            // ORDER BY interno (ex.: CROSS APPLY (SELECT TOP 1 ... ORDER BY ...)) e legitimo; so o final e proibido.
+            Assert.DoesNotContain("ORDER BY", op.Sql[(op.Sql.LastIndexOf(')') + 1)..]);
 
             // O trio da paginacao, completo.
             Assert.NotNull(op.Ordenacao);
@@ -184,7 +185,7 @@ public class CatalogoRealTestes
         Assert.Equal(31, op.PeriodoMaxDias);
 
         var obrigatorios = op.Parametros.Where(p => p.Obrigatorio).Select(p => p.Nome).ToHashSet();
-        Assert.Equal(new HashSet<string> { "CodigoFilial", "inicio", "fim" }, obrigatorios);
+        Assert.Equal(new HashSet<string> { "OrdemFilial", "inicio", "fim" }, obrigatorios);
         var situacao = op.Parametros.Single(p => p.Nome == "Situacao");
         Assert.Equal("texto", situacao.Tipo);
         Assert.False(situacao.Obrigatorio);
@@ -225,7 +226,7 @@ public class CatalogoRealTestes
         Assert.Equal(92, op.PeriodoMaxDias);
         Assert.Equal(100, op.TamanhoPaginaPadrao);
         Assert.Equal(6, op.Desempate.Count);
-        Assert.Equal(new HashSet<string> { "CodigoFilial", "inicio", "fim" },
+        Assert.Equal(new HashSet<string> { "OrdemFilial", "inicio", "fim" },
             op.Parametros.Where(p => p.Obrigatorio).Select(p => p.Nome).ToHashSet());
     }
 
@@ -237,7 +238,7 @@ public class CatalogoRealTestes
         Assert.True(cat.Operacoes!.TryGetValue("emissao_produtos_disponiveis", out var disponiveis));
         Assert.Contains("@ClasseImposto IS NULL OR cla.Nome LIKE @ClasseImposto", disponiveis!.Sql);
         Assert.Contains("SELECT COUNT(*) FROM (", disponiveis.SqlContagem);
-        Assert.Equal("inteiro", disponiveis.Parametros.Single(p => p.Nome == "CodigoFilialEstoque").Tipo);
+        Assert.Equal("inteiro", disponiveis.Parametros.Single(p => p.Nome == "OrdemFilialEstoque").Tipo);
         Assert.Equal("texto", disponiveis.Parametros.Single(p => p.Nome == "ClasseImposto").Tipo);
         Assert.False(disponiveis.Parametros.Single(p => p.Nome == "ClasseImposto").Obrigatorio);
 

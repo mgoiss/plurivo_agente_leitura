@@ -24,47 +24,6 @@ public class CatalogoCandidatoConciliacaoDiagnosticoTestes
 
     private static string SemComentarios(string sql) => Regex.Replace(sql, @"/\*.*?\*/|--[^\n]*", "", RegexOptions.Singleline);
 
-    [Fact]
-    public void Versao_e_39_e_so_muda_o_recebimento_de_cartao_alem_das_tres_novas()
-    {
-        var novo = Candidato.Operacoes!;
-        var atual = Ler("catalogo-real.json");
-        Assert.Equal(39, Candidato.VersaoCatalogo);
-        Assert.Equal(38, atual.VersaoCatalogo);
-        foreach (var (nome, op) in atual.Operacoes!)
-        {
-            Assert.Contains(nome, novo.Keys);
-            if (nome != Cartao)
-                Assert.Equal(JsonSerializer.Serialize(op), JsonSerializer.Serialize(novo[nome]));
-        }
-        Assert.Equal(atual.Operacoes!.Count + 3, novo.Count);
-        Assert.Contains(PorCaixaDia, novo.Keys);
-        Assert.Contains(Vendas, novo.Keys);
-        Assert.Contains(Caixas, novo.Keys);
-    }
-
-    [Fact]
-    public void Recebimento_de_cartao_so_acrescenta_colunas_e_nao_muda_contagem_parametros_nem_ordenacao()
-    {
-        var antes = Ler("catalogo-real.json").Operacoes![Cartao];
-        var depois = Candidato.Operacoes![Cartao];
-        Assert.Equal(antes.SqlContagem, depois.SqlContagem);
-        Assert.Equal(JsonSerializer.Serialize(antes.Parametros), JsonSerializer.Serialize(depois.Parametros));
-        Assert.Equal(JsonSerializer.Serialize(antes.Ordenacao), JsonSerializer.Serialize(depois.Ordenacao));
-        Assert.Equal(antes.Desempate, depois.Desempate);
-        // Toda coluna que o motor ja le continua no SELECT, na mesma ordem, antes das novas.
-        var selectAntes = antes.Sql[..antes.Sql.IndexOf(" FROM Financeiro_Contas", StringComparison.Ordinal)];
-        Assert.StartsWith(selectAntes, depois.Sql);
-        Assert.Contains("fin.Cartao_Lote AS Cartao_Lote", depois.Sql);
-        Assert.Contains("efet.Cod_Efetivador", depois.Sql);
-        Assert.Contains("efet.Nome_Efetivador", depois.Sql);
-        Assert.Contains("movef.Ordem_Funcionario_Efetivacao_Financeiro", depois.Sql);
-        // OUTER APPLY com TOP 1: nunca multiplica a parcela (a contagem e o desempate continuam valendo).
-        Assert.Contains("OUTER APPLY (SELECT TOP 1", depois.Sql);
-        Assert.Contains("movef.Sequencia = fin.Codigo_Sequencia", depois.Sql);
-        Assert.Contains("movef.Efetivado_Estoque = 1 AND movef.Desefetivado_Estoque = 0", depois.Sql);
-    }
-
     [Theory]
     [InlineData(PorCaixaDia)]
     [InlineData(Vendas)]
@@ -84,9 +43,8 @@ public class CatalogoCandidatoConciliacaoDiagnosticoTestes
         Assert.Equal(30_000, op.TimeoutMs);
         Assert.NotNull(op.Ordenacao);
         Assert.NotEmpty(op.Desempate!);
-        var filial = op.Parametros.First(p => p.Nome == "CodigoFilial");
-        Assert.Equal("inteiro", filial.Tipo);
-        Assert.True(filial.Obrigatorio);
+        // O parametro de filial (hoje OrdemFilial) e garantido em CatalogoCandidatoIdentidadeOrdemTestes.
+        Assert.Contains(op.Parametros, p => p.Nome.EndsWith("Filial", StringComparison.Ordinal) && p.Tipo == "inteiro" && p.Obrigatorio);
         // Todo parametro usado no SQL esta declarado e vice-versa (a contagem usa os mesmos).
         var usados = Regex.Matches(SemComentarios(op.Sql), @"@[A-Za-z_]+").Select(m => m.Value[1..]).ToHashSet();
         Assert.Equal(op.Parametros.Select(p => p.Nome).ToHashSet(), usados);
