@@ -243,4 +243,17 @@ public class CatalogoCandidatoPublicoTestes
         Assert.Equal("fotos_por_produto", excesso.Motivo);
         Assert.Equal(9, excesso.LinhasLidas);
     }
+
+    [Fact]
+    public void Indice_de_fotos_nao_conta_volume_de_foto_nao_lida()
+    {
+        var acumulador = new AcumuladorIndiceFotosPublicas();
+        acumulador.Incluir(1, 10, 1000, "PNG valido", texto => texto == "PNG valido");
+        // Segunda foto do mesmo produto: o executor nao le o texto (nulo) e o
+        // tamanho dela, mesmo enorme, nao pode estourar o volume.
+        acumulador.Incluir(1, 11, IndiceFotosPublicas.MaxCaracteres, null,
+                          texto => texto == "PNG valido");
+        Assert.Equal(1000, acumulador.CaracteresLidos);
+        Assert.Equal(10, acumulador.Fotos[1]);
+    }
 }
