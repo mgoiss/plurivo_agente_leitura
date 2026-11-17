@@ -38,6 +38,7 @@
     <None Include="..\..\catalogo\catalogo.candidato-aceleracao-imagens.json" Link="fixtures\catalogo.candidato-aceleracao-imagens.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.candidato-filtro-variacao.json" Link="fixtures\catalogo.candidato-filtro-variacao.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.candidato-indice-fotos.json" Link="fixtures\catalogo.candidato-indice-fotos.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\catalogo\catalogo.candidato-cartao-por-chave.json" Link="fixtures\catalogo.candidato-cartao-por-chave.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.candidato-vendas-indice.json" Link="fixtures\catalogo.candidato-vendas-indice.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.candidato-ciclo-automatico.json" Link="fixtures\catalogo.candidato-ciclo-automatico.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.candidato-conciliacao-diagnostico.json" Link="fixtures\catalogo.candidato-conciliacao-diagnostico.json" CopyToOutputDirectory="PreserveNewest" />
