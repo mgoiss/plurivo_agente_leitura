@@ -101,7 +101,10 @@ public sealed class ExecutorOperacao(
                 log.LogError(ex, "Falha ao preparar o indice de vendas da operacao {Op}.", nomeOperacao);
                 return MensagemResultado.Erro(idRequisicao, "erro_consulta", "falha ao executar a consulta no banco.");
             }
-            if (vendas is null)
+            if (vendas is null && op.VendasIndiceOpcional)
+                // A construcao ja foi disparada em ObterIndiceVendas; esta consulta segue sem ranking.
+                vendas = new Dictionary<int, decimal>();
+            else if (vendas is null)
                 // Nao espera a construcao: o broker responde na ordem alfabetica.
                 return MensagemResultado.Erro(idRequisicao, CodigoRankingIndisponivel,
                     "o ranking de vendas ainda nao esta pronto.");

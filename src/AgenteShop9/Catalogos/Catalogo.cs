@@ -53,9 +53,17 @@ public sealed record Operacao
     /// <summary>
     /// Prepara #VendasIndice (Produto_Ordem, Quantidade) com o indice de vendas da
     /// filial antes desta consulta (issue #179). Sem indice pronto, a operacao
-    /// responde `ranking_indisponivel` sem tocar o banco.
+    /// responde `ranking_indisponivel` sem tocar o banco, salvo se
+    /// <see cref="VendasIndiceOpcional"/>.
     /// </summary>
     [JsonPropertyName("usa_vendas_indice")] public bool UsaVendasIndice { get; init; }
+
+    /// <summary>
+    /// So vale com <see cref="UsaVendasIndice"/>. Sem indice pronto a consulta NAO falha: prepara
+    /// #VendasIndice vazia, dispara a construcao em segundo plano e segue (a ordem cai no desempate
+    /// da propria consulta). Para operacao em que o ranking e so enfeite (pagina inicial da vitrine).
+    /// </summary>
+    [JsonPropertyName("vendas_indice_opcional")] public bool VendasIndiceOpcional { get; init; }
 
     /// <summary>Operacao assinada usada somente pelo agente, nunca por pedido remoto.</summary>
     [JsonPropertyName("uso_interno")] public bool UsoInterno { get; init; }
@@ -141,6 +149,9 @@ public sealed record Catalogo
             if (op.PeriodoMaxDias is < 1)
                 throw new CatalogoInvalidoException(
                     $"operacao '{nome}' com 'periodo_max_dias' invalido (>= 1).");
+            if (op.VendasIndiceOpcional && !op.UsaVendasIndice)
+                throw new CatalogoInvalidoException(
+                    $"operacao '{nome}' com 'vendas_indice_opcional' sem 'usa_vendas_indice'.");
             foreach (var p in op.Parametros)
             {
                 if (string.IsNullOrWhiteSpace(p.Nome))

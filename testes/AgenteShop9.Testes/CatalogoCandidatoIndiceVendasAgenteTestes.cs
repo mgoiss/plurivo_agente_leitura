@@ -46,8 +46,9 @@ public class CatalogoCandidatoIndiceVendasAgenteTestes
     [Fact]
     public void Relacionados_segue_como_no_v41_porque_e_coocorrencia_e_nao_soma_por_produto()
     {
-        // Pendencia de decisao registrada no relatorio da etapa: o indice (Produto_Ordem, Quantidade)
-        // nao responde "vendas em comum". Este teste trava o estado atual para a mudanca ser consciente.
+        // Decidido na #179 (CA2 da especificacao): relacionados fica FORA do indice, pois calcula
+        // coocorrencia de produtos e o indice (Produto_Ordem, Quantidade) nao responde "vendas em comum".
+        // Este teste trava o estado para qualquer mudanca ser consciente.
         var op = V42.Operacoes!["catalogo_relacionados"];
         Assert.False(op.UsaVendasIndice);
         Assert.Equal(JsonSerializer.Serialize(V41.Operacoes!["catalogo_relacionados"]), JsonSerializer.Serialize(op));
@@ -111,7 +112,7 @@ public class CatalogoCandidatoIndiceVendasAgenteTestes
             Assert.Equal(antes.SqlContagem, depois.SqlContagem);
             Assert.Equal(
                 JsonSerializer.Serialize(antes with { Sql = "" }),
-                JsonSerializer.Serialize(depois with { Sql = "", UsaVendasIndice = false }));
+                JsonSerializer.Serialize(depois with { Sql = "", UsaVendasIndice = false, VendasIndiceOpcional = false }));
             Assert.Contains(depois.Parametros, p => p.Nome == "Inicio");
         }
         Assert.Contains("COALESCE(venda.Quantidade, 0) AS Quantidade_Vendida",
@@ -126,5 +127,22 @@ public class CatalogoCandidatoIndiceVendasAgenteTestes
             if (!mudadas.Contains(nome))
                 Assert.Equal(JsonSerializer.Serialize(op), JsonSerializer.Serialize(V42.Operacoes![nome]));
         Assert.Equal(V41.Operacoes.Count + 1, V42.Operacoes!.Count);
+    }
+
+    [Fact]
+    public void Inicio_tem_o_indice_opcional_e_produtos_ids_nao()
+    {
+        Assert.True(V42.Operacoes!["catalogo_inicio"].UsaVendasIndice);
+        Assert.True(V42.Operacoes["catalogo_inicio"].VendasIndiceOpcional);
+        Assert.True(V42.Operacoes["catalogo_produtos_ids"].UsaVendasIndice);
+        Assert.False(V42.Operacoes["catalogo_produtos_ids"].VendasIndiceOpcional);
+        Assert.False(V42.Operacoes["catalogo_produtos_ids_sem_vendas"].UsaVendasIndice);
+    }
+
+    [Fact]
+    public void Opcional_sem_usar_o_indice_e_catalogo_invalido()
+    {
+        var json = "{\"versao_catalogo\":1,\"operacoes\":{\"x\":{\"sql\":\"SELECT 1\",\"vendas_indice_opcional\":true}}}";
+        Assert.Throws<CatalogoInvalidoException>(() => Catalogo.Analisar(System.Text.Encoding.UTF8.GetBytes(json)));
     }
 }

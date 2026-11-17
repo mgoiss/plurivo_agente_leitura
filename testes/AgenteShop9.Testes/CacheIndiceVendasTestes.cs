@@ -251,4 +251,24 @@ public class CacheIndiceVendasTestes
         await Task.Delay(50);
         Assert.Equal(0, v42.Construcoes);
     }
+
+    [Fact]
+    public async Task Filial_sem_vendas_indice_vazio_e_valido_e_nao_devolve_nulo()
+    {
+        var relogio = new Relogio();
+        using var cache = Novo(relogio);
+        var construcoes = 0;
+        CacheIndiceVendas.Construtor vazio = _ =>
+        {
+            Interlocked.Increment(ref construcoes);
+            return Task.FromResult<IReadOnlyDictionary<int, decimal>>(new Dictionary<int, decimal>());
+        };
+
+        Assert.Null(cache.Obter("7", vazio));
+        IReadOnlyDictionary<int, decimal>? indice = null;
+        await Esperar(() => (indice = cache.Obter("7", vazio)) is not null);
+        Assert.Empty(indice!);
+        Assert.NotNull(cache.Obter("7", vazio));
+        Assert.Equal(1, construcoes);
+    }
 }
