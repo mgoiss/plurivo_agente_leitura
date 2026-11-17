@@ -28,7 +28,7 @@ INNER JOIN Prod_Serv_Precos AS preco ON preco.Ordem_Prod_Serv = prod.Ordem
 INNER JOIN Classe_Imposto AS cla ON cla.Ordem = prod.Ordem_Classe_Imposto_Saida
 INNER JOIN Tabelas_Preco AS tab ON tab.Ordem = preco.Ordem_Tabela_Preco
 INNER JOIN Estoque_Atual AS esto ON esto.Ordem_Prod_Serv = prod.Ordem
-       AND esto.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialEstoque)
+       AND esto.Ordem_Filial = @OrdemFilialEstoque
 -- Grade: sem cor/tamanho o LEFT JOIN devolve NULL e a linha segue igual.
 LEFT JOIN Cores AS cor ON cor.Ordem = esto.Ordem_Cor
 LEFT JOIN Tamanhos AS tam ON tam.Ordem = esto.Ordem_Tamanho
@@ -36,7 +36,7 @@ INNER JOIN Movimento_Prod_Serv AS movProd ON movProd.Ordem_Prod_Serv = prod.Orde
 INNER JOIN Movimento AS mov ON mov.Ordem = movProd.Ordem_Movimento
 WHERE movProd.Linha_Excluida = 0
   AND mov.Data_Efetivado_Estoque >= DATEADD(DAY, -ISNULL(@DiasVendas, 90), GETDATE())
-  AND mov.Ordem_Filial = (SELECT Ordem FROM Filiais WHERE Codigo = @CodigoFilialOrigem)
+  AND mov.Ordem_Filial = @OrdemFilialOrigem
   AND mov.Tipo_Operacao = 'VND'
   AND mov.Ordem_Operacao = (SELECT Ordem FROM Operacoes WHERE Codigo = @CodigoOperacaoVenda)
   AND tab.Ordem = @OrdemTabelaPreco

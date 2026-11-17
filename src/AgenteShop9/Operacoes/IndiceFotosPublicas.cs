@@ -20,7 +20,7 @@ public static class IndiceFotosPublicas
         IReadOnlyDictionary<string, JsonElement> recebidos)
     {
         var parametros = new Dictionary<string, JsonElement>();
-        foreach (var nome in new[] { "CodigoFilial" }.Concat(
+        foreach (var nome in new[] { "OrdemFilial" }.Concat(
                      Enumerable.Range(1, 8).Select(i => $"Tabela_{i:00}")))
             if (recebidos.TryGetValue(nome, out var valor))
                 parametros[nome] = valor;
@@ -30,9 +30,9 @@ public static class IndiceFotosPublicas
     public static string ChaveEscopo(int versao,
                                     IReadOnlyDictionary<string, JsonElement> parametros)
     {
-        if (!parametros.TryGetValue("CodigoFilial", out var filial)
-            || filial.ValueKind != JsonValueKind.Number || !filial.TryGetInt32(out var codigo)
-            || codigo < 1)
+        if (!parametros.TryGetValue("OrdemFilial", out var filial)
+            || filial.ValueKind != JsonValueKind.Number || !filial.TryGetInt32(out var ordemFilial)
+            || ordemFilial < 1)
             throw new ArgumentException("Filial do indice de fotos invalida.");
         var tabelas = new List<int>();
         for (var i = 1; i <= 8; i++)
@@ -47,7 +47,7 @@ public static class IndiceFotosPublicas
         }
         if (tabelas.Count == 0 || tabelas.Count != tabelas.Distinct().Count())
             throw new ArgumentException("Conjunto de tabelas do indice de fotos invalido.");
-        return $"{versao}:{codigo}:{string.Join(",", tabelas)}";
+        return $"{versao}:{ordemFilial}:{string.Join(",", tabelas)}";
     }
 
     public static bool FotoValida(string? texto)
@@ -132,7 +132,7 @@ public sealed class IndiceFotosTempoException(
 public sealed class AcumuladorIndiceFotosPublicas
 {
     public const int MaxLinhas = 50_000;
-    public const long MaxCaracteres = 128L * 1024 * 1024;
+    public const long MaxCaracteres = 512L * 1024 * 1024;
     private int _linhas;
     private int _produtoAnterior;
     private int _fotosDoProduto;
@@ -158,9 +158,14 @@ public sealed class AcumuladorIndiceFotosPublicas
             throw new IndiceFotosCapacidadeException("fotos_por_produto", _linhas, _caracteres);
         if (caracteres < 1 || caracteres > IndiceFotosPublicas.MaxCaracteres)
             throw new IndiceFotosCapacidadeException("tamanho_foto", _linhas, _caracteres);
-        _caracteres += caracteres;
-        if (_caracteres > MaxCaracteres)
-            throw new IndiceFotosCapacidadeException("volume_texto", _linhas, _caracteres);
+        // So conta o volume das fotos efetivamente lidas; as de produto que ja tem
+        // foto valida chegam com texto nulo e nao pesam na memoria.
+        if (fotoBase64 is not null)
+        {
+            _caracteres += caracteres;
+            if (_caracteres > MaxCaracteres)
+                throw new IndiceFotosCapacidadeException("volume_texto", _linhas, _caracteres);
+        }
         IndiceFotosPublicas.TentarIncluir(
             Fotos, produtoOrdem, imagemOrdem, fotoBase64, validar);
     }

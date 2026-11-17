@@ -7,7 +7,7 @@ namespace AgenteShop9.Operacoes;
 /// vistos em requisicoes, para o aquecimento da proxima subida do agente
 /// (issue #119). O agente so descobre o escopo quando o backend manda o pedido;
 /// sem isso a primeira vitrine apos cada reinicio pagaria a carga completa.
-/// O arquivo tem so numeros (CodigoFilial, Tabela_NN); nada sensivel.
+/// O arquivo tem so numeros (OrdemFilial, Tabela_NN); nada sensivel.
 /// </summary>
 public sealed class EscoposIndiceFotos(string caminho, int maximo = 16)
 {

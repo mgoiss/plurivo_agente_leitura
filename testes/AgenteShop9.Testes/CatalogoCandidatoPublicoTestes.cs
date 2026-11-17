@@ -201,8 +201,8 @@ public class CatalogoCandidatoPublicoTestes
         Assert.Contains("filial.Codigo = @CodigoFilial", operacao.Sql);
         Assert.Contains("preco.Ordem_Tabela_Preco IN (@Tabela_01", operacao.Sql);
         Assert.Contains("preco.Inativo = 0 AND preco.Preco > 0", operacao.Sql);
-        using var jsonA = JsonDocument.Parse("""{"CodigoFilial":2,"Tabela_01":4}""");
-        using var jsonB = JsonDocument.Parse("""{"CodigoFilial":2,"Tabela_01":9}""");
+        using var jsonA = JsonDocument.Parse("""{"OrdemFilial":2,"Tabela_01":4}""");
+        using var jsonB = JsonDocument.Parse("""{"OrdemFilial":2,"Tabela_01":9}""");
         var recebidoA = jsonA.RootElement.EnumerateObject()
             .ToDictionary(p => p.Name, p => p.Value.Clone());
         var recebidoB = jsonB.RootElement.EnumerateObject()
@@ -211,7 +211,10 @@ public class CatalogoCandidatoPublicoTestes
         var parametrosB = IndiceFotosPublicas.ParametrosEscopo(recebidoB);
         Assert.Equal("30:2:4", IndiceFotosPublicas.ChaveEscopo(30, parametrosA));
         Assert.Equal("30:2:9", IndiceFotosPublicas.ChaveEscopo(30, parametrosB));
-        var comandoA = MontadorComando.Montar(operacao, parametrosA);
+        // O escopo do indice agora fala OrdemFilial (issue #178): o comando e montado com a operacao do candidato novo.
+        var operacaoPorOrdem = Catalogo.Analisar(File.ReadAllBytes(Path.Combine(
+            AppContext.BaseDirectory, "fixtures", "catalogo.candidato-identidade-ordem.json"))).Operacoes!["catalogo_indice_fotos"];
+        var comandoA = MontadorComando.Montar(operacaoPorOrdem, parametrosA);
         Assert.Equal(4L, comandoA.Parameters["@Tabela_01"].Value);
         Assert.Equal(DBNull.Value, comandoA.Parameters["@Tabela_02"].Value);
 
@@ -239,5 +242,18 @@ public class CatalogoCandidatoPublicoTestes
         });
         Assert.Equal("fotos_por_produto", excesso.Motivo);
         Assert.Equal(9, excesso.LinhasLidas);
+    }
+
+    [Fact]
+    public void Indice_de_fotos_nao_conta_volume_de_foto_nao_lida()
+    {
+        var acumulador = new AcumuladorIndiceFotosPublicas();
+        acumulador.Incluir(1, 10, 1000, "PNG valido", texto => texto == "PNG valido");
+        // Segunda foto do mesmo produto: o executor nao le o texto (nulo) e o
+        // tamanho dela, mesmo enorme, nao pode estourar o volume.
+        acumulador.Incluir(1, 11, IndiceFotosPublicas.MaxCaracteres, null,
+                          texto => texto == "PNG valido");
+        Assert.Equal(1000, acumulador.CaracteresLidos);
+        Assert.Equal(10, acumulador.Fotos[1]);
     }
 }
