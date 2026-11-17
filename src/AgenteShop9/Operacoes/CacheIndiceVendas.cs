@@ -142,6 +142,9 @@ public sealed class CacheIndiceVendas(
     {
         _encerramento.Cancel();
         _encerramento.Dispose();
+        // Construcao em andamento pode ainda tocar o semaforo ao terminar (Release/WaitAsync);
+        // descartar so o libera recursos nao gerenciados, e ela ja esta cancelada.
+        _umaPorVez.Dispose();
     }
 }
 

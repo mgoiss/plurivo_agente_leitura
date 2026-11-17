@@ -29,15 +29,18 @@ Assinatura e chave pública: `../../ferramentas/assinatura/`.
   1,7 s. Não remover a dica. O índice é nativo do Shop9: conferir que existe em todo cliente novo antes de
   ligar a vitrine (`SELECT name FROM sys.indexes WHERE object_id = OBJECT_ID('Movimento') AND name =
   'CI_Filial_Estoque_CliFor'`); sem ele a consulta falha com o erro 308. Nunca criar índice no banco do
-  cliente por conta própria. `catalogo_relacionados` ainda lê `Movimento` direto (é coocorrência de venda,
-  não soma por produto; decisão pendente na #179).
+  cliente por conta própria. `catalogo_relacionados` continua lendo `Movimento` direto, FORA do índice
+  (decidido na #179, CA2 da especificação: calcula coocorrência de produtos, não soma por produto).
 - **Índice de vendas: cache por filial, chave SEM versão do catálogo (issue #179, ADR 0010).**
   `CacheIndiceVendas` guarda `(Produto_Ordem, Quantidade)` por `OrdemFilial`, renova a cada ~10 min em
   segundo plano (stale-while-revalidate), uma construção por vez, recuo de 60 s após falha mantendo o
   índice antigo. A chave é só a filial: diferente do índice de fotos (`CacheIndiceFotos`, chave com
   `VersaoCatalogo`), um catálogo novo NÃO pode zerar o índice de vendas. Sem índice pronto a requisição
   NÃO espera: dispara a construção e responde `ranking_indisponivel` (código estável usado pelo broker
-  para cair na ordem alfabética; não mudar). Só operações com `usa_vendas_indice` dependem dele;
+  para cair na ordem alfabética; não mudar). Exceção: operação com `vendas_indice_opcional` (hoje
+  `catalogo_inicio`) NÃO falha, cria `#VendasIndice` vazia, dispara a construção e segue (ordem pelo
+  desempate da consulta); só `catalogo_produtos_ids` devolve `ranking_indisponivel`. Só operações com
+  `usa_vendas_indice` dependem dele;
   `catalogo_produtos_ids_sem_vendas` (nome/preço) não. Escopos vistos ficam em
   `dados/escopos_indice_vendas.json` para o aquecimento no boot.
 - **Validação de certificado TLS no agente é obrigatória.** Proibido desativar,
