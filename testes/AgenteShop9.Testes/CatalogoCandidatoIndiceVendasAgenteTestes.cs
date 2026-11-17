@@ -5,12 +5,12 @@ using AgenteShop9.Operacoes;
 namespace AgenteShop9.Testes;
 
 /// <summary>
-/// Candidato v42 da issue #179 (indice de vendas no agente): `catalogo_vendas_indice` e `#VendasIndice` no lugar do
+/// Candidato v43 da issue #179 (indice de vendas no agente): `catalogo_vendas_indice` e `#VendasIndice` no lugar do
 /// trecho Vendas. Nao assina nem publica nada.
 /// </summary>
 public class CatalogoCandidatoIndiceVendasAgenteTestes
 {
-    private const string Arquivo = "catalogo.candidato-vendas-indice-agente-v42.json";
+    private const string Arquivo = "catalogo.candidato-vendas-indice-agente-v43.json";
     private const string Indice = "catalogo_vendas_indice";
     private static readonly string[] ComIndice = ["catalogo_produtos_ids", "catalogo_inicio"];
 
@@ -23,7 +23,7 @@ public class CatalogoCandidatoIndiceVendasAgenteTestes
     [Fact]
     public void Versao_e_42_sobre_o_vigente_v41()
     {
-        Assert.Equal(42, V42.VersaoCatalogo);
+        Assert.Equal(43, V42.VersaoCatalogo);
         Assert.Equal(41, V41.VersaoCatalogo);
     }
 
@@ -120,13 +120,25 @@ public class CatalogoCandidatoIndiceVendasAgenteTestes
     }
 
     [Fact]
-    public void Demais_operacoes_ficam_identicas_ao_v41()
+    public void Demais_operacoes_ficam_identicas_ao_v41_exceto_o_cartao()
     {
-        var mudadas = new HashSet<string>(ComIndice) { Indice };
+        // O cartao muda por acumulo do candidato da #178 (liga a venda pela chave); ver CatalogoCandidatoCartaoPorChaveTestes.
+        var mudadas = new HashSet<string>(ComIndice) { Indice, "financeiro_recebimentos_cartao_pix_em_aberto" };
         foreach (var (nome, op) in V41.Operacoes!)
             if (!mudadas.Contains(nome))
                 Assert.Equal(JsonSerializer.Serialize(op), JsonSerializer.Serialize(V42.Operacoes![nome]));
         Assert.Equal(V41.Operacoes.Count + 1, V42.Operacoes!.Count);
+    }
+
+    [Fact]
+    public void Acumula_a_correcao_do_cartao_por_chave_da_178()
+    {
+        var op = V42.Operacoes!["financeiro_recebimentos_cartao_pix_em_aberto"];
+        foreach (var sql in new[] { op.Sql, op.SqlContagem })
+        {
+            Assert.Contains("movef.Ordem_Financeiro = fin.Ordem_Pai", sql);
+            Assert.DoesNotContain("movef.Sequencia", sql);
+        }
     }
 
     [Fact]

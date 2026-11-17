@@ -34,7 +34,7 @@ public class ExecutorIndiceVendasTestes : IDisposable
 
     private ExecutorOperacao Executor(ILogger<ExecutorOperacao>? logger = null)
     {
-        var origem = Path.Combine(AppContext.BaseDirectory, "fixtures", "catalogo.candidato-vendas-indice-agente-v42.json");
+        var origem = Path.Combine(AppContext.BaseDirectory, "fixtures", "catalogo.candidato-vendas-indice-agente-v43.json");
         var caminho = Path.Combine(_dir, "catalogo.json");
         File.Copy(origem, caminho);
         File.WriteAllText(caminho + ".minisig", "assinatura-ficticia");
@@ -45,9 +45,9 @@ public class ExecutorIndiceVendasTestes : IDisposable
         var gestor = new GestorCatalogo(NullLogger<GestorCatalogo>.Instance, config, (bytes, _) =>
             ResultadoVerificacao.Ok(
                 $"arquivo=catalogo.json sha256={Convert.ToHexStringLower(SHA256.HashData(bytes))} " +
-                "data=2026-01-01T00:00:00Z versao=42"));
+                "data=2026-01-01T00:00:00Z versao=43"));
         gestor.Inicializar();
-        Assert.Equal(42, gestor.VersaoAceita);
+        Assert.Equal(43, gestor.VersaoAceita);
         return new ExecutorOperacao(logger ?? NullLogger<ExecutorOperacao>.Instance, config, gestor);
     }
 

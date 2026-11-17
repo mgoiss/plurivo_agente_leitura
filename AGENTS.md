@@ -22,7 +22,7 @@ Assinatura e chave pública: `../../ferramentas/assinatura/`.
   Anti-retrocesso: recusar `versao_catalogo` menor ou igual à atual. Spec
   3.3.1, 3.7.
 - **Vendas do catálogo leem `Movimento` pelo índice nomeado (issue #125), agora só no índice de vendas
-  (issue #179).** No catálogo v42 o trecho de vendas saiu de `catalogo_produtos_ids` e `catalogo_inicio`
+  (issue #179).** No catálogo v43 o trecho de vendas saiu de `catalogo_produtos_ids` e `catalogo_inicio`
   (juntam com `#VendasIndice`) e vive em `catalogo_vendas_indice` (uso_interno, timeout 30000 ms), com
   `FROM Movimento AS mov WITH (INDEX (CI_Filial_Estoque_CliFor))` e janela fixa de 59 dias calculada no SQL.
   Sem a dica o SQL Server escolhe `IX_Movimento_1` com key lookup (567 mil leituras) e a consulta passa de
