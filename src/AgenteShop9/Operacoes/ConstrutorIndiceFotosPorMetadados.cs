@@ -28,13 +28,19 @@ public static class ConstrutorIndiceFotosPorMetadados
             Func<string?, bool> validar,
             Func<TimeSpan> decorrido,
             TimeSpan tempoMaximo,
-            CancellationToken ct)
+            CancellationToken ct,
+            int paralelismo = 1)
     {
         var acumulador = new AcumuladorIndiceFotosPublicas();
         var lidas = 0;
         var doCache = 0;
+        IReadOnlySet<int> lidasNoAquecimento = new HashSet<int>();
         try
         {
+            if (paralelismo > 1)
+                lidasNoAquecimento = await PreAquecerAsync(
+                    metadados, cache, lerFoto, validar, decorrido, tempoMaximo, paralelismo, ct);
+
             foreach (var meta in metadados)
             {
                 ct.ThrowIfCancellationRequested();
@@ -49,7 +55,11 @@ public static class ConstrutorIndiceFotosPorMetadados
                     if (cache.TentarObter(meta.ImagemOrdem, meta.Caracteres, out var valida))
                     {
                         validaNoCache = valida;
-                        doCache++;
+                        // Lida do banco pelo aquecimento nesta mesma construcao: conta como lida, nao como cache.
+                        if (lidasNoAquecimento.Contains(meta.ImagemOrdem))
+                            lidas++;
+                        else
+                            doCache++;
                     }
                     else
                     {
@@ -97,5 +107,73 @@ public static class ConstrutorIndiceFotosPorMetadados
         return (acumulador.Fotos,
             new ResumoConstrucaoIndiceFotos(
                 metadados.Count, lidas, doCache, acumulador.Fotos.Count));
+    }
+
+    /// <summary>
+    /// Leitura fria rapida: le e valida em paralelo a primeira foto ainda desconhecida de cada produto
+    /// (a que a passada sequencial leria) e guarda o resultado no cache. A passada sequencial que vem
+    /// depois acha quase tudo no cache e so le o que sobrou (a segunda foto de produto cuja primeira
+    /// e invalida). Nao altera o resultado nem os limites: so adianta o trabalho. Cada foto lida fica
+    /// no maximo 1 MB e e descartada apos validar, entao a memoria fica em paralelismo x 1 MB.
+    /// Passar do tempo maximo ou qualquer falha aqui so encerra o aquecimento: o progresso ja
+    /// registrado vale e a passada sequencial decide (inclusive lancar o timeout). Devolve as ordens
+    /// lidas do banco aqui, para o resumo contar como lidas e nao como cache.
+    /// </summary>
+    private static async Task<IReadOnlySet<int>> PreAquecerAsync(
+        IReadOnlyList<MetadadoFoto> metadados,
+        CacheValidacaoFotos cache,
+        Func<int, CancellationToken, Task<string?>> lerFoto,
+        Func<string?, bool> validar,
+        Func<TimeSpan> decorrido,
+        TimeSpan tempoMaximo,
+        int paralelismo,
+        CancellationToken ct)
+    {
+        var pendentes = new List<MetadadoFoto>();
+        foreach (var grupo in metadados.GroupBy(m => m.ProdutoOrdem))
+        {
+            foreach (var foto in grupo)
+            {
+                if (!cache.TentarObter(foto.ImagemOrdem, foto.Caracteres, out var valida))
+                {
+                    pendentes.Add(foto);
+                    break;
+                }
+                if (valida)
+                    break;
+            }
+        }
+        var lidasAgora = new System.Collections.Concurrent.ConcurrentDictionary<int, byte>();
+        if (pendentes.Count == 0)
+            return new HashSet<int>();
+
+        try
+        {
+            await Parallel.ForEachAsync(
+                pendentes,
+                new ParallelOptions { MaxDegreeOfParallelism = paralelismo, CancellationToken = ct },
+                async (foto, token) =>
+                {
+                    if (decorrido() > tempoMaximo)
+                        throw new IndiceFotosTempoException(0, 0);
+                    var texto = await lerFoto(foto.ImagemOrdem, token);
+                    // Foto que sumiu entre os metadados e a leitura (texto nulo) nao entra no cache.
+                    if (texto is not null)
+                    {
+                        cache.Registrar(foto.ImagemOrdem, foto.Caracteres, validar(texto));
+                        lidasAgora[foto.ImagemOrdem] = 0;
+                    }
+                });
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // Tempo, banco ou GDI+: o aquecimento para aqui e a passada sequencial segue com o que ficou no cache.
+        }
+        cache.Gravar();
+        return lidasAgora.Keys.ToHashSet();
     }
 }

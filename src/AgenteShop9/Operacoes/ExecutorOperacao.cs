@@ -51,6 +51,9 @@ public sealed class ExecutorOperacao(
     // os limites iniciais. O prazo HTTP ainda e de 10 s; preparar o indice
     // pode concluir depois dele, para medir as consultas com cache aquecido.
     private static readonly TimeSpan TempoMaximoIndiceFotos = TimeSpan.FromSeconds(12);
+
+    /// <summary>Leituras e validacoes de foto simultaneas na reconstrucao a frio do indice (#182).</summary>
+    private static readonly int LeiturasParalelasFotos = Math.Clamp(Environment.ProcessorCount, 2, 4);
     private readonly CacheIndiceFotos _cacheFotos = new(log);
     private readonly EscoposIndiceFotos _escoposFotos = new(Path.Combine(
         Path.GetDirectoryName(Path.GetFullPath(config.CatalogoCaminho)) ?? ".",
@@ -447,9 +450,13 @@ public sealed class ExecutorOperacao(
             }
         }
 
+        // Uma conexao do pool por leitura: o aquecimento le varias fotos ao mesmo tempo (sem MARS,
+        // uma conexao so aguenta um comando por vez).
         async Task<string?> LerFoto(int ordemFoto, CancellationToken token)
         {
-            await using var cmd = MontadorComando.Montar(opFoto, ParametrosFoto(ordemFoto), conexao: conexao);
+            await using var conexaoFoto = new SqlConnection(config.ConexaoSql);
+            await conexaoFoto.OpenAsync(token);
+            await using var cmd = MontadorComando.Montar(opFoto, ParametrosFoto(ordemFoto), conexao: conexaoFoto);
             var bruto = await cmd.ExecuteScalarAsync(token);
             return bruto as string;
         }
@@ -460,7 +467,7 @@ public sealed class ExecutorOperacao(
         {
             (fotos, resumo) = await ConstrutorIndiceFotosPorMetadados.ConstruirAsync(
                 metadados, _validacaoFotos, LerFoto, IndiceFotosPublicas.FotoValida,
-                () => relogioIndice.Elapsed, TempoMaximoIndiceFotos, ct);
+                () => relogioIndice.Elapsed, TempoMaximoIndiceFotos, ct, LeiturasParalelasFotos);
         }
         catch (IndiceFotosTempoException ex)
         {

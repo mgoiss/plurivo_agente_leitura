@@ -338,4 +338,117 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
         await Construir(cache, []);
         Assert.Equal(0, cache.Quantidade);
     }
+
+    // ---- Aquecimento paralelo da leitura fria (issue #182) ----
+
+    private readonly System.Collections.Concurrent.ConcurrentQueue<int> _leiturasSeguras = new();
+    private int _simultaneas;
+    private int _maxSimultaneas;
+
+    private async Task<string?> LerSeguro(int ordem, CancellationToken ct)
+    {
+        _leiturasSeguras.Enqueue(ordem);
+        var agora = Interlocked.Increment(ref _simultaneas);
+        int visto;
+        while ((visto = Volatile.Read(ref _maxSimultaneas)) < agora
+               && Interlocked.CompareExchange(ref _maxSimultaneas, agora, visto) != visto) { }
+        await Task.Delay(20, ct);
+        Interlocked.Decrement(ref _simultaneas);
+        lock (_banco)
+            return _banco.TryGetValue(ordem, out var t) ? t : null;
+    }
+
+    private static bool ValidarSeguro(string? texto) => texto == "ok";
+
+    private Task<(IReadOnlyDictionary<int, int> Fotos, ResumoConstrucaoIndiceFotos Resumo)> ConstruirParalelo(
+        CacheValidacaoFotos cache, IReadOnlyList<MetadadoFoto> metadados, int paralelismo,
+        TimeSpan? tempoMaximo = null, Func<TimeSpan>? decorrido = null) =>
+        ConstrutorIndiceFotosPorMetadados.ConstruirAsync(
+            metadados, cache, LerSeguro, ValidarSeguro, decorrido ?? (() => TimeSpan.Zero),
+            tempoMaximo ?? TimeSpan.FromSeconds(12), CancellationToken.None, paralelismo);
+
+    [Fact]
+    public async Task Paralelo_a_frio_da_o_mesmo_indice_que_o_sequencial_e_le_em_paralelo()
+    {
+        var metadados = new List<MetadadoFoto>();
+        for (var p = 1; p <= 40; p++)
+        {
+            Banco(p * 10 + 1);
+            metadados.Add(M(p, p * 10 + 1));
+        }
+        var sequencial = await Construir(NovoCache(), metadados);
+
+        _banco.Clear();
+        foreach (var m in metadados) Banco(m.ImagemOrdem);
+        var cache = new CacheValidacaoFotos(Path.Combine(_pasta, "paralelo.json"), () => _agora);
+        var (fotos, resumo) = await ConstruirParalelo(cache, metadados, paralelismo: 4);
+
+        Assert.Equal(sequencial.Fotos, fotos);
+        Assert.InRange(_maxSimultaneas, 2, 4);
+        Assert.Equal(40, _leiturasSeguras.Count);
+        // Lidas pelo aquecimento contam como lidas do banco, nao como cache.
+        Assert.Equal(new ResumoConstrucaoIndiceFotos(40, 40, 0, 40), resumo);
+    }
+
+    [Fact]
+    public async Task Paralelo_nao_le_foto_extra_de_produto_cuja_primeira_e_valida()
+    {
+        Banco(1, 2, 3);
+        var cache = NovoCache();
+
+        await ConstruirParalelo(cache, [M(10, 1), M(10, 2), M(20, 3)], paralelismo: 4);
+
+        Assert.Equal([1, 3], _leiturasSeguras.Order().ToArray());
+    }
+
+    [Fact]
+    public async Task Paralelo_primeira_invalida_cai_na_segunda_na_passada_sequencial()
+    {
+        _banco[1] = "lixo";
+        Banco(2);
+        var cache = NovoCache();
+
+        var (fotos, resumo) = await ConstruirParalelo(cache, [M(10, 1), M(10, 2)], paralelismo: 4);
+
+        Assert.Equal(2, fotos[10]);
+        Assert.Equal(2, resumo.LidasDoBanco);
+        Assert.Equal(0, resumo.DoCache);
+        Assert.Equal([1, 2], _leiturasSeguras.Order().ToArray());
+    }
+
+    [Fact]
+    public async Task Paralelo_com_cache_cheio_nao_le_nada()
+    {
+        Banco(1, 2);
+        var metadados = new[] { M(10, 1), M(20, 2) };
+        var cache = NovoCache();
+        await ConstruirParalelo(cache, metadados, paralelismo: 4);
+        while (_leiturasSeguras.TryDequeue(out _)) { }
+
+        var (_, resumo) = await ConstruirParalelo(cache, metadados, paralelismo: 4);
+
+        Assert.Empty(_leiturasSeguras);
+        Assert.Equal(new ResumoConstrucaoIndiceFotos(2, 0, 2, 2), resumo);
+    }
+
+    [Fact]
+    public async Task Paralelo_que_estoura_o_tempo_guarda_o_progresso_e_lanca_o_timeout()
+    {
+        var metadados = new List<MetadadoFoto>();
+        for (var p = 1; p <= 30; p++)
+        {
+            Banco(p);
+            metadados.Add(M(p, p));
+        }
+        var cache = NovoCache();
+        var relogio = new System.Diagnostics.Stopwatch();
+        relogio.Start();
+
+        // 60 ms de orcamento com 20 ms por leitura e 2 em paralelo: nao da para ler as 30.
+        await Assert.ThrowsAsync<IndiceFotosTempoException>(() =>
+            ConstruirParalelo(cache, metadados, paralelismo: 2,
+                tempoMaximo: TimeSpan.FromMilliseconds(60), decorrido: () => relogio.Elapsed));
+
+        Assert.InRange(NovoCache().Quantidade, 1, 29); // o que foi lido ficou em disco
+    }
 }
