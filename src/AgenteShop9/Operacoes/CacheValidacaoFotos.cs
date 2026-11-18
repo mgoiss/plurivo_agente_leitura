@@ -66,7 +66,9 @@ public sealed class CacheValidacaoFotos(
 
     /// <summary>
     /// Grava em disco o que mudou desde a ultima gravacao. Com <paramref name="ordensVivas"/>,
-    /// antes poda as entradas de fotos que nao aparecem mais (foto removida ou fora do escopo).
+    /// antes poda as entradas que NAO apareceram nesta construcao E ja venceram. O cache e global e
+    /// cada construcao enxerga so um escopo: podar o que nao esta nele apagaria as fotos exclusivas
+    /// de outro escopo. Foto removida sai do indice na hora e do cache em ate <see cref="Validade"/>.
     /// Falha de disco nao propaga.
     /// </summary>
     public void Gravar(IReadOnlySet<int>? ordensVivas = null)
@@ -75,11 +77,16 @@ public sealed class CacheValidacaoFotos(
         {
             var entradas = Carregar();
             if (ordensVivas is not null)
-                foreach (var ordem in entradas.Keys.Where(o => !ordensVivas.Contains(o)).ToList())
+            {
+                var agora = _agora();
+                foreach (var ordem in entradas
+                             .Where(e => !ordensVivas.Contains(e.Key) && e.Value.ValidadoEm + Validade <= agora)
+                             .Select(e => e.Key).ToList())
                 {
                     entradas.Remove(ordem);
                     _sujo = true;
                 }
+            }
             if (!_sujo)
                 return;
             var temporario = caminho + ".tmp";

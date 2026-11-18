@@ -75,11 +75,22 @@ public static class ConstrutorIndiceFotosPorMetadados
                 throw new IndiceFotosTempoException(
                     acumulador.LinhasLidas, acumulador.CaracteresLidos);
         }
-        catch
+        catch (Exception ex)
         {
             // Tempo estourado, limite ou cancelamento: guarda o que ja foi validado
             // (sem podar) para a proxima tentativa avancar.
             cache.Gravar();
+            switch (ex)
+            {
+                case IndiceFotosTempoException tempo:
+                    tempo.LidasDoBanco = lidas;
+                    tempo.DoCache = doCache;
+                    break;
+                case IndiceFotosCapacidadeException capacidade:
+                    capacidade.LidasDoBanco = lidas;
+                    capacidade.DoCache = doCache;
+                    break;
+            }
             throw;
         }
         cache.Gravar(metadados.Select(m => m.ImagemOrdem).ToHashSet());

@@ -68,18 +68,28 @@ public class CacheValidacaoFotosTestes : IDisposable
     }
 
     [Fact]
-    public void Gravar_com_ordens_vivas_poda_as_que_sumiram()
+    public void Gravar_com_ordens_vivas_so_poda_o_que_sumiu_E_ja_venceu()
     {
         var a = Novo();
         a.Registrar(10, 500, true);
         a.Registrar(11, 700, true);
+
+        // Ausente da construcao, mas dentro das 24 h: fica (pode ser de outro escopo).
+        a.Gravar(new HashSet<int> { 10 });
+        Assert.Equal(2, Novo().Quantidade);
+
+        // Vencida e ausente: sai. A viva fica mesmo vencida.
+        _agora += Validade + TimeSpan.FromMinutes(1);
         a.Gravar(new HashSet<int> { 10 });
 
         var b = Novo();
         Assert.Equal(1, b.Quantidade);
-        Assert.True(b.TentarObter(10, 500, out _));
         Assert.False(b.TentarObter(11, 700, out _));
+        _agora -= Validade + TimeSpan.FromMinutes(1);
+        Assert.True(b.TentarObter(10, 500, out _));
     }
+
+    private static TimeSpan Validade => CacheValidacaoFotos.Validade;
 
     [Fact]
     public void Arquivo_ausente_comeca_vazio()

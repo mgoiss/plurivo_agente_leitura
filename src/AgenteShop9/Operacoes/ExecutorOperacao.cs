@@ -151,8 +151,9 @@ public sealed class ExecutorOperacao(
         }
         catch (IndiceFotosTempoException ex)
         {
-            log.LogWarning("Operacao {Op} excedeu o tempo do indice de fotos apos {DuracaoMs} ms: {Linhas} linhas, {Caracteres} caracteres.",
-                nomeOperacao, relogio.ElapsedMilliseconds, ex.LinhasLidas, ex.CaracteresLidos);
+            log.LogWarning("Operacao {Op} excedeu o tempo do indice de fotos apos {DuracaoMs} ms: {Linhas} linhas, {Caracteres} caracteres, {Lidas} fotos lidas do banco, {DoCache} do cache.",
+                nomeOperacao, relogio.ElapsedMilliseconds, ex.LinhasLidas, ex.CaracteresLidos,
+                ex.LidasDoBanco, ex.DoCache);
             return MensagemResultado.Erro(idRequisicao, "timeout", "a preparacao de fotos excedeu o tempo permitido.");
         }
         catch (TimeoutException)
@@ -170,9 +171,9 @@ public sealed class ExecutorOperacao(
         }
         catch (IndiceFotosCapacidadeException ex)
         {
-            log.LogWarning("Operacao {Op} excedeu o indice de fotos na etapa {Etapa}: {Motivo}, {Linhas} linhas, {Caracteres} caracteres, {DuracaoMs} ms.",
+            log.LogWarning("Operacao {Op} excedeu o indice de fotos na etapa {Etapa}: {Motivo}, {Linhas} linhas, {Caracteres} caracteres, {Lidas} fotos lidas do banco, {DoCache} do cache, {DuracaoMs} ms.",
                 nomeOperacao, etapa, ex.Motivo, ex.LinhasLidas, ex.CaracteresLidos,
-                relogio.ElapsedMilliseconds);
+                ex.LidasDoBanco, ex.DoCache, relogio.ElapsedMilliseconds);
             return MensagemResultado.Erro(idRequisicao, "resultado_grande",
                 "o indice de fotos desse catalogo excedeu o limite permitido.");
         }
@@ -453,9 +454,29 @@ public sealed class ExecutorOperacao(
             return bruto as string;
         }
 
-        var (fotos, resumo) = await ConstrutorIndiceFotosPorMetadados.ConstruirAsync(
-            metadados, _validacaoFotos, LerFoto, IndiceFotosPublicas.FotoValida,
-            () => relogioIndice.Elapsed, TempoMaximoIndiceFotos, ct);
+        IReadOnlyDictionary<int, int> fotos;
+        ResumoConstrucaoIndiceFotos resumo;
+        try
+        {
+            (fotos, resumo) = await ConstrutorIndiceFotosPorMetadados.ConstruirAsync(
+                metadados, _validacaoFotos, LerFoto, IndiceFotosPublicas.FotoValida,
+                () => relogioIndice.Elapsed, TempoMaximoIndiceFotos, ct);
+        }
+        catch (IndiceFotosTempoException ex)
+        {
+            // Evidencia tambem na construcao em segundo plano (so numeros); o progresso ja foi gravado no cache.
+            log.LogWarning(
+                "Indice de fotos interrompido por tempo: {Total} fotos no escopo, {Lidas} lidas do banco, {DoCache} do cache, {DuracaoMs} ms.",
+                metadados.Count, ex.LidasDoBanco, ex.DoCache, relogioIndice.ElapsedMilliseconds);
+            throw;
+        }
+        catch (IndiceFotosCapacidadeException ex)
+        {
+            log.LogWarning(
+                "Indice de fotos interrompido por limite ({Motivo}): {Total} fotos no escopo, {Lidas} lidas do banco, {DoCache} do cache, {DuracaoMs} ms.",
+                ex.Motivo, metadados.Count, ex.LidasDoBanco, ex.DoCache, relogioIndice.ElapsedMilliseconds);
+            throw;
+        }
         log.LogInformation(
             "Indice de fotos construido: {Total} fotos no escopo, {Lidas} lidas do banco, {DoCache} do cache, {Produtos} produtos com foto valida, {DuracaoMs} ms.",
             resumo.TotalFotos, resumo.LidasDoBanco, resumo.DoCache, resumo.ProdutosComFoto,

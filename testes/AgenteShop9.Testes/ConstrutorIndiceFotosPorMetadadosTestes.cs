@@ -100,7 +100,7 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
     }
 
     [Fact]
-    public async Task CA12_foto_removida_sai_do_indice_e_do_cache()
+    public async Task CA12_foto_removida_sai_do_indice_na_hora_e_do_cache_apos_vencer()
     {
         Banco(1, 2);
         var cache = NovoCache();
@@ -110,8 +110,33 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
         var (fotos, _) = await Construir(cache, [M(10, 1)]);
 
         Assert.Equal(new Dictionary<int, int> { [10] = 1 }, fotos);
+        Assert.Equal(2, cache.Quantidade); // dentro das 24 h pode ser de outro escopo
+
+        _agora += TimeSpan.FromHours(25);
+        await Construir(cache, [M(10, 1)]);
         Assert.Equal(1, cache.Quantidade);
         Assert.Equal(1, NovoCache().Quantidade); // gravado em disco, ja podado
+    }
+
+    [Fact]
+    public async Task Dois_escopos_alternando_nao_apagam_o_cache_um_do_outro()
+    {
+        for (var i = 1; i <= 6; i++)
+            Banco(i);
+        var escopoA = new[] { M(10, 1), M(20, 2), M(30, 3), M(40, 4) };
+        var escopoB = new[] { M(30, 3), M(40, 4), M(50, 5), M(60, 6) }; // 5 e 6 so no B, 1 e 2 so no A
+        var cache = NovoCache();
+
+        var lidas = new List<int>();
+        foreach (var escopo in new[] { escopoA, escopoB, escopoA, escopoB, escopoA, escopoB })
+        {
+            _leituras.Clear();
+            await Construir(cache, escopo);
+            lidas.Add(_leituras.Count);
+        }
+
+        // A le 4; B so as 2 exclusivas dele; a partir da 3a construcao, zero leituras.
+        Assert.Equal(new[] { 4, 2, 0, 0, 0, 0 }, lidas);
     }
 
     [Fact]
@@ -267,7 +292,9 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
         _custoPorLeitura = TimeSpan.FromSeconds(5); // cada leitura gasta 5 s: so 3 cabem em 12 s
 
         var cache = NovoCache();
-        await Assert.ThrowsAsync<IndiceFotosTempoException>(() => Construir(cache, metadados));
+        var tempo = await Assert.ThrowsAsync<IndiceFotosTempoException>(() => Construir(cache, metadados));
+        Assert.Equal(_leituras.Count, tempo.LidasDoBanco);
+        Assert.Equal(0, tempo.DoCache);
 
         var lidasAteAqui = _leituras.Count;
         Assert.InRange(lidasAteAqui, 1, 9);
@@ -296,7 +323,7 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
     }
 
     [Fact]
-    public async Task Sem_metadados_devolve_indice_vazio_e_limpa_o_cache()
+    public async Task Sem_metadados_devolve_indice_vazio_e_limpa_o_cache_so_apos_vencer()
     {
         var cache = NovoCache();
         cache.Registrar(1, 100, true);
@@ -305,6 +332,10 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
 
         Assert.Empty(fotos);
         Assert.Equal(0, resumo.TotalFotos);
+        Assert.Equal(1, cache.Quantidade);
+
+        _agora += TimeSpan.FromHours(25);
+        await Construir(cache, []);
         Assert.Equal(0, cache.Quantidade);
     }
 }

@@ -119,6 +119,10 @@ public sealed class IndiceFotosCapacidadeException(
     public string Motivo { get; } = motivo;
     public int LinhasLidas { get; } = linhasLidas;
     public long CaracteresLidos { get; } = caracteresLidos;
+
+    /// <summary>Fotos lidas do banco / vindas do cache ate a falha (caminho por metadados, #182); nulo no antigo.</summary>
+    public int? LidasDoBanco { get; set; }
+    public int? DoCache { get; set; }
 }
 
 public sealed class IndiceFotosTempoException(
@@ -126,6 +130,8 @@ public sealed class IndiceFotosTempoException(
 {
     public int LinhasLidas { get; } = linhasLidas;
     public long CaracteresLidos { get; } = caracteresLidos;
+    public int? LidasDoBanco { get; set; }
+    public int? DoCache { get; set; }
 }
 
 /// <summary>Consome somente as linhas da consulta ja limitada ao escopo da vitrine.</summary>
