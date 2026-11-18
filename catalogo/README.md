@@ -292,3 +292,11 @@ inventamos grade a partir de saldo inexistente. Verificar paginação/contagem,
 inclusive produto de grade sem linha no Estoque_Atual. Sem a publicação manual
 do catálogo validado, os cadastros e filtros novos exibem incompatibilidade e
 ações dependentes permanecem bloqueadas.
+
+## Candidato do cache de validação de fotos (#182, v44)
+
+`catalogo.candidato-cache-validacao-fotos-v44.json` é o v43 + duas operações internas:
+`catalogo_indice_fotos_metadados` (mesmo escopo do `catalogo_indice_fotos`, sem `Foto_Base64`) e
+`catalogo_foto_base64` (parâmetro `OrdemFoto`, uma foto). Sem assinatura: assinar e publicar é só do dono.
+O agente com v43 segue no `catalogo_indice_fotos` antigo. Base v43 congelada para os testes em
+`testes/fixtures/catalogo.base-v43.json`.
