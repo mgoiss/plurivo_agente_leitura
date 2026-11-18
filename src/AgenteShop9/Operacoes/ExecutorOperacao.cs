@@ -40,6 +40,8 @@ public sealed class ExecutorOperacao(
 {
     private const string OperacaoIndiceFotos = "catalogo_indice_fotos";
     private const string OperacaoImpressaoFotos = "catalogo_indice_fotos_impressao";
+    private const string OperacaoVendasIndice = "catalogo_vendas_indice";
+    public const string CodigoRankingIndisponivel = "ranking_indisponivel";
 
     private sealed class ResultadoGrandeException : Exception;
     // Homologacao #109: 1.252 fotos elegiveis exigiram 105 MiB e ultrapassaram
@@ -50,6 +52,11 @@ public sealed class ExecutorOperacao(
     private readonly EscoposIndiceFotos _escoposFotos = new(Path.Combine(
         Path.GetDirectoryName(Path.GetFullPath(config.CatalogoCaminho)) ?? ".",
         "dados", "escopos_indice_fotos.json"));
+    // Indice de vendas (#179): chave = OrdemFilial, sem versao do catalogo.
+    private readonly CacheIndiceVendas _cacheVendas = new(log);
+    private readonly EscoposIndiceFotos _escoposVendas = new(Path.Combine(
+        Path.GetDirectoryName(Path.GetFullPath(config.CatalogoCaminho)) ?? ".",
+        "dados", "escopos_indice_vendas.json"));
 
     public async Task<MensagemResultado> ExecutarAsync(JsonElement pedido, CancellationToken ct)
     {
@@ -82,6 +89,26 @@ public sealed class ExecutorOperacao(
 
         var relogio = Stopwatch.StartNew();
         var etapa = "conexao";
+        IReadOnlyDictionary<int, decimal>? vendas = null;
+        if (op.UsaVendasIndice)
+        {
+            try
+            {
+                vendas = ObterIndiceVendas(catalogo, recebidos);
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex, "Falha ao preparar o indice de vendas da operacao {Op}.", nomeOperacao);
+                return MensagemResultado.Erro(idRequisicao, "erro_consulta", "falha ao executar a consulta no banco.");
+            }
+            if (vendas is null && op.VendasIndiceOpcional)
+                // A construcao ja foi disparada em ObterIndiceVendas; esta consulta segue sem ranking.
+                vendas = new Dictionary<int, decimal>();
+            else if (vendas is null)
+                // Nao espera a construcao: o broker responde na ordem alfabetica.
+                return MensagemResultado.Erro(idRequisicao, CodigoRankingIndisponivel,
+                    "o ranking de vendas ainda nao esta pronto.");
+        }
         try
         {
             await using var conexao = new SqlConnection(config.ConexaoSql);
@@ -92,6 +119,12 @@ public sealed class ExecutorOperacao(
                 var fotos = await ObterIndiceFotos(catalogo, recebidos, ct);
                 etapa = "tabela_fotos";
                 await PrepararTabelaFotos(conexao, fotos, ct);
+            }
+
+            if (vendas is not null)
+            {
+                etapa = "tabela_vendas";
+                await PrepararTabelaVendas(conexao, vendas, ct);
             }
 
             etapa = "consulta";
@@ -178,6 +211,7 @@ public sealed class ExecutorOperacao(
     /// </summary>
     public void Aquecer()
     {
+        AquecerVendas();
         try
         {
             var catalogo = gestorCatalogo.CatalogoAceito;
@@ -194,7 +228,8 @@ public sealed class ExecutorOperacao(
                 }
                 catch (ArgumentException)
                 {
-                    log.LogWarning("Escopo guardado do indice de fotos invalido; ignorado no aquecimento.");
+                    _escoposFotos.Remover(parametros);
+                    log.LogWarning("Escopo guardado do indice de fotos invalido; removido do disco.");
                 }
             }
         }
@@ -204,7 +239,125 @@ public sealed class ExecutorOperacao(
         }
     }
 
-    public void Dispose() => _cacheFotos.Dispose();
+    /// <summary>
+    /// Aquecimento do indice de vendas (#179): uma construcao por filial ja vista
+    /// (guardada em disco). Nunca bloqueia nem lanca.
+    /// </summary>
+    private void AquecerVendas()
+    {
+        try
+        {
+            var catalogo = gestorCatalogo.CatalogoAceito;
+            if (catalogo?.Operacoes is null
+                || !catalogo.Operacoes.TryGetValue(OperacaoVendasIndice, out var op) || !op.UsoInterno)
+                return;
+            foreach (var parametros in _escoposVendas.Listar())
+            {
+                try
+                {
+                    _ = _cacheVendas.Aquecer(ChaveVendas(parametros),
+                        CriarConstrutorVendas(catalogo, parametros));
+                }
+                catch (ArgumentException)
+                {
+                    _escoposVendas.Remover(parametros);
+                    log.LogWarning("Escopo guardado do indice de vendas invalido; removido do disco.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            log.LogWarning("Aquecimento do indice de vendas nao iniciou ({Tipo}).", ex.GetType().Name);
+        }
+    }
+
+    public void Dispose()
+    {
+        _cacheFotos.Dispose();
+        _cacheVendas.Dispose();
+    }
+
+    /// <summary>Chave do indice de vendas: so a filial. Nunca a versao do catalogo.</summary>
+    public static string ChaveVendas(IReadOnlyDictionary<string, JsonElement> parametros)
+    {
+        if (!parametros.TryGetValue("OrdemFilial", out var filial)
+            || filial.ValueKind != JsonValueKind.Number || !filial.TryGetInt32(out var ordem)
+            || ordem < 1)
+            throw new ArgumentException("Filial do indice de vendas invalida.");
+        return ordem.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private IReadOnlyDictionary<int, decimal>? ObterIndiceVendas(
+        Catalogo catalogo, IReadOnlyDictionary<string, JsonElement> recebidos)
+    {
+        var parametros = new Dictionary<string, JsonElement>();
+        if (recebidos.TryGetValue("OrdemFilial", out var filial))
+            parametros["OrdemFilial"] = filial;
+        var chave = ChaveVendas(parametros);
+        var construtor = CriarConstrutorVendas(catalogo, parametros);
+        _escoposVendas.Registrar(parametros);
+        return _cacheVendas.Obter(chave, construtor);
+    }
+
+    private CacheIndiceVendas.Construtor CriarConstrutorVendas(
+        Catalogo catalogo, Dictionary<string, JsonElement> parametros)
+    {
+        if (catalogo.Operacoes is null
+            || !catalogo.Operacoes.TryGetValue(OperacaoVendasIndice, out var operacao)
+            || !operacao.UsoInterno)
+            throw new InvalidOperationException("Catalogo sem indice de vendas assinado.");
+        if (ValidadorParametros.Validar(operacao, parametros) is not null)
+            throw new ArgumentException("Escopo do indice de vendas invalido.");
+        return ct => ConstruirIndiceVendas(operacao, parametros, ct);
+    }
+
+    private async Task<IReadOnlyDictionary<int, decimal>> ConstruirIndiceVendas(
+        Operacao operacao, Dictionary<string, JsonElement> parametros, CancellationToken ct)
+    {
+        await using var conexao = new SqlConnection(config.ConexaoSql);
+        await conexao.OpenAsync(ct);
+        var vendas = new Dictionary<int, decimal>();
+        await using var comando = MontadorComando.Montar(operacao, parametros, conexao: conexao);
+        await using var leitor = await comando.ExecuteReaderAsync(ct);
+        while (await leitor.ReadAsync(ct))
+        {
+            if (vendas.Count >= operacao.MaxLinhas)
+                throw new IndiceVendasCapacidadeException();
+            if (leitor.IsDBNull(0))
+                continue;
+            vendas[leitor.GetInt32(0)] = leitor.IsDBNull(1) ? 0m : leitor.GetDecimal(1);
+        }
+        return vendas;
+    }
+
+    /// <summary>Teto da carga das tabelas temporarias; o <c>CancellationToken</c> segue valendo antes dele.</summary>
+    private const int TimeoutCargaTabelaTemporariaSegundos = 60;
+
+    private sealed class IndiceVendasCapacidadeException : Exception;
+
+    private static async Task PrepararTabelaVendas(
+        SqlConnection conexao, IReadOnlyDictionary<int, decimal> vendas, CancellationToken ct)
+    {
+        await using (var comando = conexao.CreateCommand())
+        {
+            comando.CommandText = "CREATE TABLE #VendasIndice (Produto_Ordem int NOT NULL PRIMARY KEY, Quantidade decimal(19,4) NOT NULL)";
+            await comando.ExecuteNonQueryAsync(ct);
+        }
+        if (vendas.Count == 0)
+            return;
+        var tabela = new DataTable();
+        tabela.Columns.Add("Produto_Ordem", typeof(int));
+        tabela.Columns.Add("Quantidade", typeof(decimal));
+        foreach (var (produto, quantidade) in vendas)
+            tabela.Rows.Add(produto, quantidade);
+        using var copia = new SqlBulkCopy(conexao)
+        {
+            DestinationTableName = "#VendasIndice",
+            BatchSize = 1000,
+            BulkCopyTimeout = TimeoutCargaTabelaTemporariaSegundos,
+        };
+        await copia.WriteToServerAsync(tabela, ct);
+    }
 
     /// <summary>
     /// Delegates do cache para o escopo. Cada um abre a PROPRIA conexao: a da
@@ -295,7 +448,7 @@ public sealed class ExecutorOperacao(
         {
             DestinationTableName = "#FotosValidas",
             BatchSize = 1000,
-            BulkCopyTimeout = 2,
+            BulkCopyTimeout = TimeoutCargaTabelaTemporariaSegundos,
         };
         await copia.WriteToServerAsync(tabela, ct);
     }

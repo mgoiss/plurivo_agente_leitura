@@ -49,6 +49,35 @@ public sealed class EscoposIndiceFotos(string caminho, int maximo = 16)
         }
     }
 
+    /// <summary>
+    /// Remove o escopo guardado (ex.: gravado com chave de versao antiga, que o aquecimento
+    /// recusa a cada subida). Devolve true se existia. Falha de disco nao propaga.
+    /// </summary>
+    public bool Remover(IReadOnlyDictionary<string, JsonElement> parametros)
+    {
+        var alvo = new Dictionary<string, int>();
+        foreach (var (nome, valor) in parametros)
+            if (valor.ValueKind == JsonValueKind.Number && valor.TryGetInt32(out var n))
+                alvo[nome] = n;
+        lock (_trava)
+        {
+            var lista = Carregar();
+            var indice = lista.FindIndex(e => e.Count == alvo.Count && !e.Except(alvo).Any());
+            if (indice < 0)
+                return false;
+            lista.RemoveAt(indice);
+            try
+            {
+                File.WriteAllText(caminho, JsonSerializer.Serialize(lista));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Sem persistencia o escopo volta a ser recusado e removido na proxima subida.
+            }
+            return true;
+        }
+    }
+
     private List<Dictionary<string, int>> Carregar()
     {
         if (_escopos is not null)
