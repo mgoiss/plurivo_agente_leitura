@@ -113,6 +113,48 @@ public class CacheValidacaoFotosTestes : IDisposable
         Assert.All(vencimentos, g => Assert.InRange(g.Count(), 60, 220)); // ~135 por hora
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(-2)]
+    [InlineData(int.MaxValue)]
+    [InlineData(int.MinValue)]
+    public void Validade_por_foto_aceita_ordem_zero_negativa_e_extrema(int ordem)
+    {
+        Assert.InRange(CacheValidacaoFotos.ValidadeDe(ordem), Validade, ValidadeMaxima);
+    }
+
+    [Fact]
+    public void Entrada_vale_ate_o_prazo_exato_e_vence_nele()
+    {
+        var cache = Novo();
+        cache.Registrar(10, 500, true);
+        var prazo = CacheValidacaoFotos.ValidadeDe(10);
+
+        _agora += prazo - TimeSpan.FromTicks(1);
+        Assert.True(cache.TentarObter(10, 500, out _));
+        _agora += TimeSpan.FromTicks(1);
+        Assert.False(cache.TentarObter(10, 500, out _));
+    }
+
+    [Fact]
+    public void Poda_respeita_o_prazo_da_propria_foto()
+    {
+        // Acha duas ordens com prazos distintos: a de prazo menor vence antes da outra.
+        var curta = Enumerable.Range(1, 200).MinBy(CacheValidacaoFotos.ValidadeDe);
+        var longa = Enumerable.Range(1, 200).MaxBy(CacheValidacaoFotos.ValidadeDe);
+        Assert.True(CacheValidacaoFotos.ValidadeDe(curta) + TimeSpan.FromHours(1) < CacheValidacaoFotos.ValidadeDe(longa));
+
+        var a = Novo();
+        a.Registrar(curta, 500, true);
+        a.Registrar(longa, 500, true);
+        _agora += CacheValidacaoFotos.ValidadeDe(curta) + TimeSpan.FromMinutes(1);
+        a.Gravar(new HashSet<int>());
+
+        var b = Novo();
+        Assert.Equal(1, b.Quantidade); // so a curta foi podada; a longa ainda nao venceu
+    }
+
     [Fact]
     public void Entrada_vence_so_depois_do_prazo_da_propria_foto()
     {
