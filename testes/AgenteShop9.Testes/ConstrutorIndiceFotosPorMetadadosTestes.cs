@@ -451,4 +451,62 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
 
         Assert.InRange(NovoCache().Quantidade, 1, 29); // o que foi lido ficou em disco
     }
+
+    [Fact]
+    public async Task Paralelo_respeita_o_limite_de_volume_de_texto_das_fotos_lidas_no_aquecimento()
+    {
+        var metadados = new List<MetadadoFoto>();
+        for (var p = 1; p <= 600; p++) // 600 x 1.000.000 > 512 x 1024 x 1024
+        {
+            Banco(p);
+            metadados.Add(M(p, p, 1_000_000));
+        }
+
+        var ex = await Assert.ThrowsAsync<IndiceFotosCapacidadeException>(() =>
+            ConstruirParalelo(NovoCache(), metadados, paralelismo: 4));
+
+        Assert.Equal("volume_texto", ex.Motivo);
+    }
+
+    [Fact]
+    public async Task Paralelo_que_estoura_o_tempo_conta_as_lidas_do_aquecimento_no_erro()
+    {
+        var metadados = new List<MetadadoFoto>();
+        for (var p = 1; p <= 30; p++)
+        {
+            Banco(p);
+            metadados.Add(M(p, p));
+        }
+        var relogio = System.Diagnostics.Stopwatch.StartNew();
+
+        var ex = await Assert.ThrowsAsync<IndiceFotosTempoException>(() =>
+            ConstruirParalelo(NovoCache(), metadados, paralelismo: 2,
+                tempoMaximo: TimeSpan.FromMilliseconds(60), decorrido: () => relogio.Elapsed));
+
+        Assert.True(ex.LidasDoBanco > 0);
+    }
+
+    [Fact]
+    public async Task Paralelo_avisa_quando_o_aquecimento_falha_e_a_passada_normal_segue()
+    {
+        Banco(1, 2);
+        Exception? falha = null;
+        var jaFalhou = false;
+        Task<string?> LerQuebrado(int ordem, CancellationToken ct)
+        {
+            if (ordem == 1 && !jaFalhou)
+            {
+                jaFalhou = true;
+                throw new InvalidOperationException("banco");
+            }
+            return LerSeguro(ordem, ct);
+        }
+
+        var (fotos, _) = await ConstrutorIndiceFotosPorMetadados.ConstruirAsync(
+            [M(10, 1), M(20, 2)], NovoCache(), LerQuebrado, ValidarSeguro, () => TimeSpan.Zero,
+            TimeSpan.FromSeconds(12), CancellationToken.None, 2, (e, _) => falha = e);
+
+        Assert.IsType<InvalidOperationException>(falha);
+        Assert.Contains(20, fotos.Keys); // a foto 2 foi lida pelo aquecimento ou pela passada normal
+    }
 }

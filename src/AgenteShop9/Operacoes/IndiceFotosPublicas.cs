@@ -150,8 +150,12 @@ public sealed class AcumuladorIndiceFotosPublicas
 
     public bool PrecisaLerFoto(int produtoOrdem) => !Fotos.ContainsKey(produtoOrdem);
 
+    /// <param name="lidaDoBanco">
+    /// True quando a foto foi lida do banco antes (aquecimento paralelo) e chega aqui sem o texto:
+    /// o volume dela conta do mesmo jeito.
+    /// </param>
     public void Incluir(int produtoOrdem, int imagemOrdem, long caracteres,
-                        string? fotoBase64, Func<string?, bool> validar)
+                        string? fotoBase64, Func<string?, bool> validar, bool lidaDoBanco = false)
     {
         if (++_linhas > MaxLinhas)
             throw new IndiceFotosCapacidadeException("linhas", _linhas, _caracteres);
@@ -166,7 +170,7 @@ public sealed class AcumuladorIndiceFotosPublicas
             throw new IndiceFotosCapacidadeException("tamanho_foto", _linhas, _caracteres);
         // So conta o volume das fotos efetivamente lidas; as de produto que ja tem
         // foto valida chegam com texto nulo e nao pesam na memoria.
-        if (fotoBase64 is not null)
+        if (fotoBase64 is not null || lidaDoBanco)
         {
             _caracteres += caracteres;
             if (_caracteres > MaxCaracteres)

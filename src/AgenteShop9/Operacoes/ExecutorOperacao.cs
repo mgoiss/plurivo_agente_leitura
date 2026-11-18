@@ -449,6 +449,8 @@ public sealed class ExecutorOperacao(
                     leitor.GetInt32(0), leitor.GetInt32(1), Convert.ToInt64(leitor.GetValue(2))));
             }
         }
+        // Os metadados acabaram: libera a conexao antes das leituras de foto (cada uma abre a sua).
+        await conexao.CloseAsync();
 
         // Uma conexao do pool por leitura: o aquecimento le varias fotos ao mesmo tempo (sem MARS,
         // uma conexao so aguenta um comando por vez).
@@ -467,7 +469,10 @@ public sealed class ExecutorOperacao(
         {
             (fotos, resumo) = await ConstrutorIndiceFotosPorMetadados.ConstruirAsync(
                 metadados, _validacaoFotos, LerFoto, IndiceFotosPublicas.FotoValida,
-                () => relogioIndice.Elapsed, TempoMaximoIndiceFotos, ct, LeiturasParalelasFotos);
+                () => relogioIndice.Elapsed, TempoMaximoIndiceFotos, ct, LeiturasParalelasFotos,
+                (ex, lidas) => log.LogWarning(
+                    "Aquecimento paralelo do indice de fotos parou ({Tipo}) apos {Lidas} fotos lidas; segue a passada normal.",
+                    ex.GetType().Name, lidas));
         }
         catch (IndiceFotosTempoException ex)
         {
