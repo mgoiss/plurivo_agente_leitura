@@ -228,7 +228,8 @@ public sealed class ExecutorOperacao(
                 }
                 catch (ArgumentException)
                 {
-                    log.LogWarning("Escopo guardado do indice de fotos invalido; ignorado no aquecimento.");
+                    _escoposFotos.Remover(parametros);
+                    log.LogWarning("Escopo guardado do indice de fotos invalido; removido do disco.");
                 }
             }
         }
@@ -259,7 +260,8 @@ public sealed class ExecutorOperacao(
                 }
                 catch (ArgumentException)
                 {
-                    log.LogWarning("Escopo guardado do indice de vendas invalido; ignorado no aquecimento.");
+                    _escoposVendas.Remover(parametros);
+                    log.LogWarning("Escopo guardado do indice de vendas invalido; removido do disco.");
                 }
             }
         }
@@ -328,6 +330,9 @@ public sealed class ExecutorOperacao(
         return vendas;
     }
 
+    /// <summary>Teto da carga das tabelas temporarias; o <c>CancellationToken</c> segue valendo antes dele.</summary>
+    private const int TimeoutCargaTabelaTemporariaSegundos = 60;
+
     private sealed class IndiceVendasCapacidadeException : Exception;
 
     private static async Task PrepararTabelaVendas(
@@ -349,7 +354,7 @@ public sealed class ExecutorOperacao(
         {
             DestinationTableName = "#VendasIndice",
             BatchSize = 1000,
-            BulkCopyTimeout = 2,
+            BulkCopyTimeout = TimeoutCargaTabelaTemporariaSegundos,
         };
         await copia.WriteToServerAsync(tabela, ct);
     }
@@ -443,7 +448,7 @@ public sealed class ExecutorOperacao(
         {
             DestinationTableName = "#FotosValidas",
             BatchSize = 1000,
-            BulkCopyTimeout = 2,
+            BulkCopyTimeout = TimeoutCargaTabelaTemporariaSegundos,
         };
         await copia.WriteToServerAsync(tabela, ct);
     }

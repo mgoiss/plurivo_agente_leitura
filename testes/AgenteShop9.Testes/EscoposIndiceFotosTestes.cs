@@ -40,6 +40,26 @@ public class EscoposIndiceFotosTestes
     }
 
     [Fact]
+    public void Remover_apaga_so_o_escopo_pedido_e_persiste()
+    {
+        var caminho = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            var e = new EscoposIndiceFotos(caminho);
+            e.Registrar(Escopo(2, 7));
+            e.Registrar(Escopo(3, 7));
+
+            Assert.True(e.Remover(Escopo(2, 7)));
+            Assert.False(e.Remover(Escopo(2, 7)));
+
+            var relido = new EscoposIndiceFotos(caminho).Listar();
+            Assert.Single(relido);
+            Assert.Equal("1:3:7", Chave(relido[0]));
+        }
+        finally { File.Delete(caminho); }
+    }
+
+    [Fact]
     public void Arquivo_corrompido_vira_lista_vazia()
     {
         var caminho = Path.GetTempFileName();
