@@ -468,7 +468,7 @@ public sealed class ExecutorOperacao(
         try
         {
             (fotos, resumo) = await ConstrutorIndiceFotosPorMetadados.ConstruirAsync(
-                metadados, _validacaoFotos, LerFoto, IndiceFotosPublicas.FotoValida,
+                metadados, _validacaoFotos, LerFoto, t => IndiceFotosPublicas.FotoValida(t, sinalizarFaltaDeMemoria: true),
                 () => relogioIndice.Elapsed, TempoMaximoIndiceFotos, ct, LeiturasParalelasFotos,
                 (ex, lidas) => log.LogWarning(
                     "Aquecimento paralelo do indice de fotos parou ({Tipo}) apos {Lidas} fotos lidas; segue a passada normal.",
@@ -532,7 +532,7 @@ public sealed class ExecutorOperacao(
                 var texto = acumulador.PrecisaLerFoto(produtoOrdem)
                     ? leitor.GetString(3) : null;
                 acumulador.Incluir(produtoOrdem, imagemOrdem, tamanho,
-                                  texto, IndiceFotosPublicas.FotoValida);
+                                  texto, t => IndiceFotosPublicas.FotoValida(t));
             }
         }
         if (relogioIndice.Elapsed > TempoMaximoIndiceFotos)

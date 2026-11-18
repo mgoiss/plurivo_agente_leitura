@@ -81,7 +81,16 @@ public static class ConstrutorIndiceFotosPorMetadados
                 {
                     if (validaNoCache is not null)
                         return validaNoCache.Value;
-                    var ok = validar(t);
+                    bool ok;
+                    try
+                    {
+                        ok = validar(t);
+                    }
+                    catch (FotoSemMemoriaException)
+                    {
+                        // Resultado nao confiavel: fora do indice agora, sem cache; a proxima construcao tenta de novo.
+                        return false;
+                    }
                     // Foto que sumiu entre os metadados e a leitura (texto nulo) nao entra no cache.
                     if (t is not null)
                         cache.Registrar(m.ImagemOrdem, m.Caracteres, ok);
@@ -175,7 +184,16 @@ public static class ConstrutorIndiceFotosPorMetadados
                     // Foto que sumiu entre os metadados e a leitura (texto nulo) nao entra no cache.
                     if (texto is not null)
                     {
-                        cache.Registrar(foto.ImagemOrdem, foto.Caracteres, validar(texto));
+                        bool ok;
+                        try
+                        {
+                            ok = validar(texto);
+                        }
+                        catch (FotoSemMemoriaException)
+                        {
+                            return; // sem cache: a passada normal decide e tenta de novo na proxima construcao
+                        }
+                        cache.Registrar(foto.ImagemOrdem, foto.Caracteres, ok);
                         lidasAgora[foto.ImagemOrdem] = 0;
                     }
                 });

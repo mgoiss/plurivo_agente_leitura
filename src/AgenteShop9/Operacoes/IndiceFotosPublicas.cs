@@ -50,7 +50,13 @@ public static class IndiceFotosPublicas
         return $"{versao}:{ordemFilial}:{string.Join(",", tabelas)}";
     }
 
-    public static bool FotoValida(string? texto)
+    /// <summary>
+    /// <paramref name="sinalizarFaltaDeMemoria"/>: o GDI+ lanca OutOfMemoryException tanto por falta
+    /// real de memoria quanto para imagem corrompida. Com true, a excecao vira
+    /// <see cref="FotoSemMemoriaException"/> em vez de "invalida", para o chamador nao guardar esse
+    /// resultado em cache por horas (so ignora a foto nesta construcao e tenta de novo na proxima).
+    /// </summary>
+    public static bool FotoValida(string? texto, bool sinalizarFaltaDeMemoria = false)
     {
         if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
             throw new PlatformNotSupportedException("Validacao de foto do agente requer Windows.");
@@ -84,6 +90,10 @@ public static class IndiceFotosPublicas
             bitmap.UnlockBits(pixels);
             return true;
         }
+        catch (OutOfMemoryException) when (sinalizarFaltaDeMemoria)
+        {
+            throw new FotoSemMemoriaException();
+        }
         catch (Exception erro) when (erro is FormatException or ArgumentException
                                       or OutOfMemoryException
                                       or System.Runtime.InteropServices.ExternalException)
@@ -112,6 +122,9 @@ public static class IndiceFotosPublicas
             selecionadas.Add(produtoOrdem, imagemOrdem);
     }
 }
+
+/// <summary>Validacao da foto sem memoria (ou imagem que o GDI+ reporta assim): resultado nao confiavel, nao vai para o cache.</summary>
+public sealed class FotoSemMemoriaException : Exception;
 
 public sealed class IndiceFotosCapacidadeException(
     string motivo, int linhasLidas, long caracteresLidos) : Exception

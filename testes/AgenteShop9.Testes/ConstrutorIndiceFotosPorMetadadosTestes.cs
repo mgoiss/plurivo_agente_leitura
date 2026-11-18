@@ -509,4 +509,20 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
         Assert.IsType<InvalidOperationException>(falha);
         Assert.Contains(20, fotos.Keys); // a foto 2 foi lida pelo aquecimento ou pela passada normal
     }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    public async Task Foto_sem_memoria_fica_fora_do_indice_mas_nao_vai_para_o_cache(int paralelismo)
+    {
+        Banco(1);
+        var cache = NovoCache();
+
+        var (fotos, _) = await ConstrutorIndiceFotosPorMetadados.ConstruirAsync(
+            [M(10, 1)], cache, LerSeguro, _ => throw new FotoSemMemoriaException(),
+            () => TimeSpan.Zero, TimeSpan.FromSeconds(12), CancellationToken.None, paralelismo);
+
+        Assert.Empty(fotos);
+        Assert.Equal(0, cache.Quantidade); // nada gravado: a proxima construcao tenta de novo
+    }
 }
