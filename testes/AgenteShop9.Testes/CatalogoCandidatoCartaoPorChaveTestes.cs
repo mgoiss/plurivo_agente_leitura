@@ -18,24 +18,10 @@ public class CatalogoCandidatoCartaoPorChaveTestes
     private static Catalogo Candidato() => Ler("catalogo.candidato-cartao-por-chave.json");
 
     [Fact]
-    public void Versao_e_maior_que_a_do_catalogo_vigente()
+    public void Versao_ja_foi_absorvida_pelo_catalogo_vigente()
     {
         Assert.Equal(42, Candidato().VersaoCatalogo);
-        Assert.True(Candidato().VersaoCatalogo > Catalogo.Analisar(Fixtures.CatalogoRealBytes).VersaoCatalogo);
-    }
-
-    [Fact]
-    public void Muda_so_a_operacao_do_cartao()
-    {
-        var antigas = Catalogo.Analisar(Fixtures.CatalogoRealBytes).Operacoes!;
-        var novas = Candidato().Operacoes!;
-        Assert.Equal(antigas.Keys.OrderBy(x => x), novas.Keys.OrderBy(x => x));
-        foreach (var (nome, op) in antigas)
-        {
-            if (nome == Operacao)
-                continue;
-            Assert.Equal(JsonSerializer.Serialize(op), JsonSerializer.Serialize(novas[nome]));
-        }
+        Assert.True(Candidato().VersaoCatalogo <= Catalogo.Analisar(Fixtures.CatalogoRealBytes).VersaoCatalogo);
     }
 
     [Fact]

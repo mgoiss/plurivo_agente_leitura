@@ -76,8 +76,8 @@ Quando a variável não existe, a pasta padrão é `./dados_catalogo` dentro do
 diretório onde o backend roda na VPS.
 
 Neste projeto, o EasyPanel monta um bind: pasta do host
-`/root/catalogo_shop_plus` ↔ `/app/dados_catalogo` no container. O `scp` grava
-no **host**, então o destino é `root@HOST_DA_VPS:/root/catalogo_shop_plus/`.
+`/srv/plurivo/catalogo` ↔ `/app/dados_catalogo` no container. O `scp` grava
+no **host**, então o destino é `USUARIO@HOST_DA_VPS:/srv/plurivo/catalogo/`.
 `/app/dados_catalogo` só existe dentro do container.
 
 No servidor, descubra a pasta configurada:
@@ -86,14 +86,17 @@ No servidor, descubra a pasta configurada:
 printenv CATALOGO_DIR
 ```
 
-No Mac, envie os dois arquivos. Troque `USUARIO`, `HOST_DA_VPS` e
-`/caminho/dados_catalogo` pelos valores reais da sua VPS:
+No Mac, envie os dois arquivos. Troque `USUARIO` e `HOST_DA_VPS` pelos valores reais da sua VPS:
 
 ```bash
 cd /Users/gois/Documents/Projetos/plurivo/repositorios/agente_leitura
-scp catalogo/catalogo.json catalogo/catalogo.json.minisig \
-  USUARIO@HOST_DA_VPS:/caminho/dados_catalogo/
+scp catalogo/catalogo.json catalogo/catalogo.json.minisig USUARIO@HOST_DA_VPS:~/
+ssh -t USUARIO@HOST_DA_VPS \
+  'sudo cp ~/catalogo.json ~/catalogo.json.minisig /srv/plurivo/catalogo/'
 ```
+
+A pasta `/srv/plurivo/catalogo` não aceita escrita direta do usuário comum: o `scp`
+vai para a home e o `sudo cp` (pede senha, por isso o `-t`) move para a pasta.
 
 Se a pasta da VPS for outra, use o valor de `CATALOGO_DIR` no destino do `scp`.
 Os dois arquivos precisam ficar juntos e com estes nomes exatos:
