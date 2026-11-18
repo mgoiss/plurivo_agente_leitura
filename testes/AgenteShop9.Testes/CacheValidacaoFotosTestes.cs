@@ -38,12 +38,12 @@ public class CacheValidacaoFotosTestes : IDisposable
     }
 
     [Fact]
-    public void Entrada_vale_no_minimo_24_horas_e_no_maximo_36_e_depois_e_revalidada()
+    public void Entrada_vale_no_minimo_12_horas_e_no_maximo_24_e_depois_e_revalidada()
     {
         var cache = Novo();
         cache.Registrar(10, 500, true);
 
-        _agora += TimeSpan.FromHours(23) + TimeSpan.FromMinutes(59);
+        _agora += TimeSpan.FromHours(11) + TimeSpan.FromMinutes(59);
         Assert.True(cache.TentarObter(10, 500, out _));
 
         _agora += TimeSpan.FromHours(12) + TimeSpan.FromMinutes(2);
@@ -93,7 +93,7 @@ public class CacheValidacaoFotosTestes : IDisposable
     private static TimeSpan ValidadeMaxima => CacheValidacaoFotos.ValidadeMaxima;
 
     [Fact]
-    public void Validade_por_foto_fica_entre_24_e_36_h_e_e_estavel()
+    public void Validade_por_foto_fica_entre_12_e_24_h_e_e_estavel()
     {
         for (var ordem = 1; ordem <= 5000; ordem++)
         {
@@ -106,7 +106,7 @@ public class CacheValidacaoFotosTestes : IDisposable
     [Fact]
     public void Fotos_validadas_juntas_nao_vencem_juntas()
     {
-        // 1621 ordens seguidas, validadas no mesmo instante: a cada hora do intervalo 24-36 h vence so uma parte.
+        // 1621 ordens seguidas, validadas no mesmo instante: a cada hora do intervalo 12-24 h vence so uma parte.
         var vencimentos = Enumerable.Range(1000, 1621)
             .Select(o => (int)CacheValidacaoFotos.ValidadeDe(o).TotalHours).GroupBy(h => h).ToList();
         Assert.Equal(12, vencimentos.Count);

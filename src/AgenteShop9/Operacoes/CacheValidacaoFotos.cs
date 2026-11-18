@@ -13,7 +13,7 @@ public sealed record EntradaValidacaoFoto(long Tamanho, bool Valida, DateTimeOff
 ///
 /// - Chave = Ordem da foto (Prod_Serv_Fotos.Ordem, unica no banco): global, nao por
 ///   escopo. Identidade = Ordem + tamanho (DATALENGTH). Tamanho diferente invalida.
-/// - Entrada vale <see cref="ValidadeDe"/> (24 h mais uma dispersao fixa por foto, de 0 a 12 h):
+/// - Entrada vale <see cref="ValidadeDe"/> (12 h mais uma dispersao fixa por foto, de 0 a 12 h: teto de 24 h):
 ///   passado esse prazo a foto e relida. E a releitura periodica que pega foto trocada por outra
 ///   de mesmo tamanho. A dispersao evita que as fotos validadas na mesma construcao a frio
 ///   vencam todas juntas e forcem uma nova leitura completa (11,9 s medidos com 1621 fotos).
@@ -24,8 +24,8 @@ public sealed record EntradaValidacaoFoto(long Tamanho, bool Valida, DateTimeOff
 public sealed class CacheValidacaoFotos(
     string caminho, Func<DateTimeOffset>? agora = null, ILogger? log = null)
 {
-    /// <summary>Prazo minimo da entrada: antes disso a foto nunca e revalidada.</summary>
-    public static readonly TimeSpan Validade = TimeSpan.FromHours(24);
+    /// <summary>Prazo minimo da entrada: antes disso a foto nunca e revalidada. O teto continua 24 h (decisao da especificacao).</summary>
+    public static readonly TimeSpan Validade = TimeSpan.FromHours(12);
 
     /// <summary>Largura da dispersao somada a <see cref="Validade"/>, fixa por foto.</summary>
     public static readonly TimeSpan Dispersao = TimeSpan.FromHours(12);

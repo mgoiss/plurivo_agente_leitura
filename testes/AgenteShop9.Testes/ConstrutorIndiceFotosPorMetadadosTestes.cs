@@ -112,7 +112,7 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
         Assert.Equal(new Dictionary<int, int> { [10] = 1 }, fotos);
         Assert.Equal(2, cache.Quantidade); // dentro das 24 h pode ser de outro escopo
 
-        _agora += TimeSpan.FromHours(37);
+        _agora += TimeSpan.FromHours(25);
         await Construir(cache, [M(10, 1)]);
         Assert.Equal(1, cache.Quantidade);
         Assert.Equal(1, NovoCache().Quantidade); // gravado em disco, ja podado
@@ -173,7 +173,7 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
         var cache = NovoCache();
         await Construir(cache, [M(10, 1)]);
 
-        _agora += TimeSpan.FromHours(37);
+        _agora += TimeSpan.FromHours(25);
         _leituras.Clear();
         var (_, resumo) = await Construir(cache, [M(10, 1)]);
 
@@ -334,7 +334,7 @@ public class ConstrutorIndiceFotosPorMetadadosTestes : IDisposable
         Assert.Equal(0, resumo.TotalFotos);
         Assert.Equal(1, cache.Quantidade);
 
-        _agora += TimeSpan.FromHours(37);
+        _agora += TimeSpan.FromHours(25);
         await Construir(cache, []);
         Assert.Equal(0, cache.Quantidade);
     }
