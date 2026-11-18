@@ -321,6 +321,8 @@ public sealed class ExecutorOperacao(
         {
             if (vendas.Count >= operacao.MaxLinhas)
                 throw new IndiceVendasCapacidadeException();
+            if (leitor.IsDBNull(0))
+                continue;
             vendas[leitor.GetInt32(0)] = leitor.IsDBNull(1) ? 0m : leitor.GetDecimal(1);
         }
         return vendas;

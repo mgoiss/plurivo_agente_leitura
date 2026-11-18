@@ -21,10 +21,10 @@ public class CatalogoCandidatoIndiceVendasAgenteTestes
     private static Catalogo V41 => Ler("catalogo-real.json");
 
     [Fact]
-    public void Versao_e_42_sobre_o_vigente_v41()
+    public void Versao_e_43_sobre_o_vigente_v42()
     {
         Assert.Equal(43, V42.VersaoCatalogo);
-        Assert.Equal(41, V41.VersaoCatalogo);
+        Assert.Equal(42, V41.VersaoCatalogo);
     }
 
     [Fact]
