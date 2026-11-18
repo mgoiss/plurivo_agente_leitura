@@ -50,7 +50,13 @@ public static class IndiceFotosPublicas
         return $"{versao}:{ordemFilial}:{string.Join(",", tabelas)}";
     }
 
-    public static bool FotoValida(string? texto)
+    /// <summary>
+    /// <paramref name="sinalizarFaltaDeMemoria"/>: o GDI+ lanca OutOfMemoryException tanto por falta
+    /// real de memoria quanto para imagem corrompida. Com true, a excecao vira
+    /// <see cref="FotoSemMemoriaException"/> em vez de "invalida", para o chamador nao guardar esse
+    /// resultado em cache por horas (so ignora a foto nesta construcao e tenta de novo na proxima).
+    /// </summary>
+    public static bool FotoValida(string? texto, bool sinalizarFaltaDeMemoria = false)
     {
         if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
             throw new PlatformNotSupportedException("Validacao de foto do agente requer Windows.");
@@ -84,6 +90,10 @@ public static class IndiceFotosPublicas
             bitmap.UnlockBits(pixels);
             return true;
         }
+        catch (OutOfMemoryException) when (sinalizarFaltaDeMemoria)
+        {
+            throw new FotoSemMemoriaException();
+        }
         catch (Exception erro) when (erro is FormatException or ArgumentException
                                       or OutOfMemoryException
                                       or System.Runtime.InteropServices.ExternalException)
@@ -113,12 +123,19 @@ public static class IndiceFotosPublicas
     }
 }
 
+/// <summary>Validacao da foto sem memoria (ou imagem que o GDI+ reporta assim): resultado nao confiavel, nao vai para o cache.</summary>
+public sealed class FotoSemMemoriaException : Exception;
+
 public sealed class IndiceFotosCapacidadeException(
     string motivo, int linhasLidas, long caracteresLidos) : Exception
 {
     public string Motivo { get; } = motivo;
     public int LinhasLidas { get; } = linhasLidas;
     public long CaracteresLidos { get; } = caracteresLidos;
+
+    /// <summary>Fotos lidas do banco / vindas do cache ate a falha (caminho por metadados, #182); nulo no antigo.</summary>
+    public int? LidasDoBanco { get; set; }
+    public int? DoCache { get; set; }
 }
 
 public sealed class IndiceFotosTempoException(
@@ -126,6 +143,8 @@ public sealed class IndiceFotosTempoException(
 {
     public int LinhasLidas { get; } = linhasLidas;
     public long CaracteresLidos { get; } = caracteresLidos;
+    public int? LidasDoBanco { get; set; }
+    public int? DoCache { get; set; }
 }
 
 /// <summary>Consome somente as linhas da consulta ja limitada ao escopo da vitrine.</summary>
@@ -144,8 +163,12 @@ public sealed class AcumuladorIndiceFotosPublicas
 
     public bool PrecisaLerFoto(int produtoOrdem) => !Fotos.ContainsKey(produtoOrdem);
 
+    /// <param name="lidaDoBanco">
+    /// True quando a foto foi lida do banco antes (aquecimento paralelo) e chega aqui sem o texto:
+    /// o volume dela conta do mesmo jeito.
+    /// </param>
     public void Incluir(int produtoOrdem, int imagemOrdem, long caracteres,
-                        string? fotoBase64, Func<string?, bool> validar)
+                        string? fotoBase64, Func<string?, bool> validar, bool lidaDoBanco = false)
     {
         if (++_linhas > MaxLinhas)
             throw new IndiceFotosCapacidadeException("linhas", _linhas, _caracteres);
@@ -160,7 +183,7 @@ public sealed class AcumuladorIndiceFotosPublicas
             throw new IndiceFotosCapacidadeException("tamanho_foto", _linhas, _caracteres);
         // So conta o volume das fotos efetivamente lidas; as de produto que ja tem
         // foto valida chegam com texto nulo e nao pesam na memoria.
-        if (fotoBase64 is not null)
+        if (fotoBase64 is not null || lidaDoBanco)
         {
             _caracteres += caracteres;
             if (_caracteres > MaxCaracteres)

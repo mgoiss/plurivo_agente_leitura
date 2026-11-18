@@ -43,6 +43,13 @@ Assinatura e chave pública: `../../ferramentas/assinatura/`.
   `usa_vendas_indice` dependem dele;
   `catalogo_produtos_ids_sem_vendas` (nome/preço) não. Escopos vistos ficam em
   `dados/escopos_indice_vendas.json` para o aquecimento no boot.
+- **Índice de fotos: cache de validação por foto (issue #182).** No catálogo v44, `catalogo_indice_fotos_metadados`
+  (sem o Base64) + `catalogo_foto_base64` (uma foto por `OrdemFoto`) fazem a reconstrução ler só as fotos novas;
+  o resultado fica em `dados/validacao_fotos.json` (`CacheValidacaoFotos`: Ordem da foto -> tamanho, válida,
+  validadoEm; vale de 12 a 24 h (12 h + dispersão fixa de 0 a 12 h por foto, derivada da Ordem, para as fotos de uma construção a frio não vencerem juntas), global, não por escopo; foto removida sai do cache só depois de vencer, nunca podar por escopo). Catálogo v43 cai no `catalogo_indice_fotos` antigo (lê tudo).
+  A leitura a frio lê e valida em paralelo (2 a 4 por vez, uma conexão do pool por foto) a primeira foto desconhecida de cada produto, antes da passada sequencial (`PreAquecerAsync`); falha ou tempo ali só encerra o aquecimento, quem decide é a passada sequencial.
+  Cada reconstrução loga "Indice de fotos construido: N fotos no escopo, L lidas do banco, C do cache...".
+  Nunca criar índice no banco do cliente para isso.
 - **Validação de certificado TLS no agente é obrigatória.** Proibido desativar,
   mesmo em teste — usar certificado de teste válido. Spec 3.6.
 
