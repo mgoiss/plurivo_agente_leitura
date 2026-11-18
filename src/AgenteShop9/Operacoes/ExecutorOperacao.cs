@@ -40,6 +40,9 @@ public sealed class ExecutorOperacao(
 {
     private const string OperacaoIndiceFotos = "catalogo_indice_fotos";
     private const string OperacaoImpressaoFotos = "catalogo_indice_fotos_impressao";
+    // Catalogo v44 (#182): metadados sem o conteudo + leitura de uma foto por Ordem.
+    private const string OperacaoMetadadosFotos = "catalogo_indice_fotos_metadados";
+    private const string OperacaoFotoBase64 = "catalogo_foto_base64";
     private const string OperacaoVendasIndice = "catalogo_vendas_indice";
     public const string CodigoRankingIndisponivel = "ranking_indisponivel";
 
@@ -52,6 +55,10 @@ public sealed class ExecutorOperacao(
     private readonly EscoposIndiceFotos _escoposFotos = new(Path.Combine(
         Path.GetDirectoryName(Path.GetFullPath(config.CatalogoCaminho)) ?? ".",
         "dados", "escopos_indice_fotos.json"));
+    // Validacao por foto (#182): global (Ordem da foto e unica), nao por escopo nem por versao.
+    private readonly CacheValidacaoFotos _validacaoFotos = new(Path.Combine(
+        Path.GetDirectoryName(Path.GetFullPath(config.CatalogoCaminho)) ?? ".",
+        "dados", "validacao_fotos.json"), log: log);
     // Indice de vendas (#179): chave = OrdemFilial, sem versao do catalogo.
     private readonly CacheIndiceVendas _cacheVendas = new(log);
     private readonly EscoposIndiceFotos _escoposVendas = new(Path.Combine(
@@ -381,7 +388,79 @@ public sealed class ExecutorOperacao(
             && ValidadorParametros.Validar(opImpressao, parametros) is null)
             impressao = ct => LerImpressaoFotos(opImpressao, parametros, ct);
 
+        // Catalogo v44+: metadados + cache de validacao (le so as fotos novas). Sem as duas
+        // operacoes assinadas e validas, segue no caminho antigo (relê todas as fotos).
+        if (TentarObterOperacoesPorMetadados(catalogo, parametros, out var opMetadados, out var opFoto))
+            return (ct => ConstruirIndiceFotosPorMetadados(opMetadados, opFoto, parametros, ct), impressao);
+
         return (ct => ConstruirIndiceFotos(operacao, parametros, ct), impressao);
+    }
+
+    /// <summary>
+    /// True se o catalogo traz as duas operacoes do indice por metadados (#182), internas e com
+    /// parametros validos para o escopo. Catalogo v43 ou anterior: false (caminho antigo).
+    /// </summary>
+    public static bool TentarObterOperacoesPorMetadados(
+        Catalogo catalogo, IReadOnlyDictionary<string, JsonElement> parametros,
+        out Operacao opMetadados, out Operacao opFoto)
+    {
+        opMetadados = opFoto = null!;
+        if (catalogo.Operacoes is null
+            || !catalogo.Operacoes.TryGetValue(OperacaoMetadadosFotos, out var metadados)
+            || !metadados.UsoInterno
+            || ValidadorParametros.Validar(metadados, parametros) is not null
+            || !catalogo.Operacoes.TryGetValue(OperacaoFotoBase64, out var foto)
+            || !foto.UsoInterno
+            || ValidadorParametros.Validar(foto, ParametrosFoto(1)) is not null)
+            return false;
+        opMetadados = metadados;
+        opFoto = foto;
+        return true;
+    }
+
+    private static Dictionary<string, JsonElement> ParametrosFoto(int ordemFoto) =>
+        new() { ["OrdemFoto"] = JsonSerializer.SerializeToElement(ordemFoto) };
+
+    /// <summary>
+    /// Indice de fotos com cache de validacao (#182): le os metadados (sem bytes) e, na mesma
+    /// conexao, so o Base64 das fotos que o cache nao conhece. Mesmos limites do caminho antigo.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<int, int>> ConstruirIndiceFotosPorMetadados(
+        Operacao opMetadados, Operacao opFoto, Dictionary<string, JsonElement> parametros,
+        CancellationToken ct)
+    {
+        var relogioIndice = Stopwatch.StartNew();
+        await using var conexao = new SqlConnection(config.ConexaoSql);
+        await conexao.OpenAsync(ct);
+        var metadados = new List<MetadadoFoto>();
+        await using (var comando = MontadorComando.Montar(opMetadados, parametros, conexao: conexao))
+        await using (var leitor = await comando.ExecuteReaderAsync(ct))
+        {
+            // O leitor fecha antes das leituras de foto (sem MARS, a conexao so aguenta um por vez).
+            while (await leitor.ReadAsync(ct))
+            {
+                if (metadados.Count >= AcumuladorIndiceFotosPublicas.MaxLinhas)
+                    throw new IndiceFotosCapacidadeException("linhas", metadados.Count + 1, 0);
+                metadados.Add(new MetadadoFoto(
+                    leitor.GetInt32(0), leitor.GetInt32(1), Convert.ToInt64(leitor.GetValue(2))));
+            }
+        }
+
+        async Task<string?> LerFoto(int ordemFoto, CancellationToken token)
+        {
+            await using var cmd = MontadorComando.Montar(opFoto, ParametrosFoto(ordemFoto), conexao: conexao);
+            var bruto = await cmd.ExecuteScalarAsync(token);
+            return bruto as string;
+        }
+
+        var (fotos, resumo) = await ConstrutorIndiceFotosPorMetadados.ConstruirAsync(
+            metadados, _validacaoFotos, LerFoto, IndiceFotosPublicas.FotoValida,
+            () => relogioIndice.Elapsed, TempoMaximoIndiceFotos, ct);
+        log.LogInformation(
+            "Indice de fotos construido: {Total} fotos no escopo, {Lidas} lidas do banco, {DoCache} do cache, {Produtos} produtos com foto valida, {DuracaoMs} ms.",
+            resumo.TotalFotos, resumo.LidasDoBanco, resumo.DoCache, resumo.ProdutosComFoto,
+            relogioIndice.ElapsedMilliseconds);
+        return fotos;
     }
 
     private async Task<string> LerImpressaoFotos(
