@@ -25,6 +25,12 @@ public sealed class CacheValidacaoFotos(
     /// <summary>Prazo da entrada: acima disso a foto e revalidada.</summary>
     public static readonly TimeSpan Validade = TimeSpan.FromHours(24);
 
+    /// <summary>Arquivo maior que isso e tratado como corrompido (o normal tem poucas centenas de KB).</summary>
+    public const long TamanhoMaximoArquivo = 32L * 1024 * 1024;
+
+    /// <summary>Folga aceita para ValidadoEm adiante do relogio (ajuste de hora); alem disso a entrada e descartada.</summary>
+    private static readonly TimeSpan FolgaRelogio = TimeSpan.FromHours(1);
+
     private readonly object _trava = new();
     private readonly Func<DateTimeOffset> _agora = agora ?? (() => DateTimeOffset.UtcNow);
     private Dictionary<int, EntradaValidacaoFoto>? _entradas;
@@ -80,7 +86,7 @@ public sealed class CacheValidacaoFotos(
             {
                 var agora = _agora();
                 foreach (var ordem in entradas
-                             .Where(e => !ordensVivas.Contains(e.Key) && e.Value.ValidadoEm + Validade <= agora)
+                             .Where(e => !ordensVivas.Contains(e.Key) && agora - e.Value.ValidadoEm >= Validade)
                              .Select(e => e.Key).ToList())
                 {
                     entradas.Remove(ordem);
@@ -112,6 +118,13 @@ public sealed class CacheValidacaoFotos(
             return _entradas;
         try
         {
+            if (File.Exists(caminho) && new FileInfo(caminho).Length > TamanhoMaximoArquivo)
+            {
+                log?.LogWarning("Cache de validacao de fotos grande demais ({Bytes} bytes); comeca vazio.",
+                    new FileInfo(caminho).Length);
+                _entradas = [];
+                return _entradas;
+            }
             _entradas = File.Exists(caminho)
                 ? JsonSerializer.Deserialize<Dictionary<int, EntradaValidacaoFoto>>(
                       File.ReadAllText(caminho)) ?? []
@@ -119,6 +132,10 @@ public sealed class CacheValidacaoFotos(
             // JSON valido mas com entrada nula (null no valor) nao serve.
             if (_entradas.Values.Any(e => e is null))
                 throw new JsonException("entrada nula");
+            // Data no futuro alem da folga (relogio errado ou arquivo adulterado) nao vale: sera revalidada.
+            var agora = _agora();
+            foreach (var ordem in _entradas.Where(e => e.Value.ValidadoEm - agora > FolgaRelogio).Select(e => e.Key).ToList())
+                _entradas.Remove(ordem);
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {

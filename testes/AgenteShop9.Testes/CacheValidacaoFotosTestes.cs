@@ -115,6 +115,47 @@ public class CacheValidacaoFotosTestes : IDisposable
     }
 
     [Fact]
+    public void Data_no_fim_do_calendario_no_arquivo_nao_lanca_e_a_entrada_e_descartada()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Caminho)!);
+        File.WriteAllText(Caminho,
+            "{\"10\":{\"Tamanho\":500,\"Valida\":true,\"ValidadoEm\":\"9999-12-31T23:59:59+00:00\"},"
+            + "\"11\":{\"Tamanho\":700,\"Valida\":true,\"ValidadoEm\":\"2026-11-17T09:30:00+00:00\"},"
+            + "\"12\":{\"Tamanho\":800,\"Valida\":true,\"ValidadoEm\":\"2026-11-17T10:30:00+00:00\"}}");
+
+        var cache = Novo();
+        Assert.Equal(2, cache.Quantidade); // 10 (futuro distante) sai; 12 esta dentro da folga de 1 h
+        Assert.False(cache.TentarObter(10, 500, out _));
+        Assert.True(cache.TentarObter(11, 700, out _));
+
+        cache.Gravar(new HashSet<int>()); // poda com data extrema na memoria nao estoura
+        Assert.Equal(2, Novo().Quantidade);
+    }
+
+    [Fact]
+    public void Gravar_com_data_extrema_registrada_nao_estoura()
+    {
+        var cache = new CacheValidacaoFotos(Caminho, () => DateTimeOffset.MaxValue);
+        cache.Registrar(10, 500, true);
+        cache.Gravar(new HashSet<int>());
+        Assert.True(cache.TentarObter(10, 500, out _));
+    }
+
+    [Fact]
+    public void Arquivo_acima_do_limite_comeca_vazio_sem_ler()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Caminho)!);
+        using (var f = File.Create(Caminho))
+            f.SetLength(CacheValidacaoFotos.TamanhoMaximoArquivo + 1);
+
+        var cache = Novo();
+        Assert.Equal(0, cache.Quantidade);
+        cache.Registrar(10, 500, true);
+        cache.Gravar();
+        Assert.True(Novo().TentarObter(10, 500, out _));
+    }
+
+    [Fact]
     public void Falha_de_disco_nao_propaga()
     {
         // O "diretorio" do arquivo e, na verdade, um arquivo: criar a pasta falha.
