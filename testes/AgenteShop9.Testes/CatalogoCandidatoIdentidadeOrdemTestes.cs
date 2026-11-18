@@ -26,14 +26,10 @@ public class CatalogoCandidatoIdentidadeOrdemTestes
     private static string SemComentarios(string sql) => Regex.Replace(sql, @"/\*.*?\*/|--[^\n]*", "", RegexOptions.Singleline);
 
     [Fact]
-    public void Vigente_e_o_v41_e_igual_ao_candidato_da_identidade_por_ordem()
+    public void Candidato_v41_ja_foi_absorvido_pelo_catalogo_vigente()
     {
-        var vigente = Ler("catalogo-real.json");
         Assert.Equal(41, Candidato.VersaoCatalogo);
-        Assert.Equal(41, vigente.VersaoCatalogo);
-        Assert.Equal(Candidato.Operacoes!.Count, vigente.Operacoes!.Count);
-        foreach (var (nome, op) in Candidato.Operacoes)
-            Assert.Equal(JsonSerializer.Serialize(op), JsonSerializer.Serialize(vigente.Operacoes[nome]));
+        Assert.True(Ler("catalogo-real.json").VersaoCatalogo >= Candidato.VersaoCatalogo);
     }
 
     [Fact]

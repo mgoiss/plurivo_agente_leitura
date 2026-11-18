@@ -18,13 +18,15 @@ public class CatalogoCandidatoIndiceVendasAgenteTestes
         Path.Combine(AppContext.BaseDirectory, "fixtures", arquivo)));
 
     private static Catalogo V42 => Ler(Arquivo);
-    private static Catalogo V41 => Ler("catalogo-real.json");
+    // Base congelada: o v42 que estava vigente antes do v43. O vigente de hoje ja e o proprio candidato.
+    private static Catalogo V41 => Ler("catalogo.base-v42.json");
 
     [Fact]
-    public void Versao_e_43_sobre_o_vigente_v42()
+    public void Versao_e_43_sobre_a_base_v42()
     {
         Assert.Equal(43, V42.VersaoCatalogo);
         Assert.Equal(42, V41.VersaoCatalogo);
+        Assert.Equal(V42.VersaoCatalogo, Catalogo.Analisar(Fixtures.CatalogoRealBytes).VersaoCatalogo);
     }
 
     [Fact]
