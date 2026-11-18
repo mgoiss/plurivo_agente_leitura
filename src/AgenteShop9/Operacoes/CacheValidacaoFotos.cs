@@ -13,8 +13,10 @@ public sealed record EntradaValidacaoFoto(long Tamanho, bool Valida, DateTimeOff
 ///
 /// - Chave = Ordem da foto (Prod_Serv_Fotos.Ordem, unica no banco): global, nao por
 ///   escopo. Identidade = Ordem + tamanho (DATALENGTH). Tamanho diferente invalida.
-/// - Entrada vale <see cref="Validade"/>: passado esse prazo a foto e relida. E a
-///   releitura completa periodica que pega foto trocada por outra de mesmo tamanho.
+/// - Entrada vale <see cref="ValidadeDe"/> (24 h mais uma dispersao fixa por foto, de 0 a 12 h):
+///   passado esse prazo a foto e relida. E a releitura periodica que pega foto trocada por outra
+///   de mesmo tamanho. A dispersao evita que as fotos validadas na mesma construcao a frio
+///   vencam todas juntas e forcem uma nova leitura completa (11,9 s medidos com 1621 fotos).
 /// - Persistencia atomica (grava em .tmp e move). Arquivo ausente ou corrompido
 ///   comeca vazio. Falha de disco nao propaga: so perde o reaproveitamento.
 /// - O arquivo guarda so numeros e booleanos; nada sensivel.
@@ -22,8 +24,25 @@ public sealed record EntradaValidacaoFoto(long Tamanho, bool Valida, DateTimeOff
 public sealed class CacheValidacaoFotos(
     string caminho, Func<DateTimeOffset>? agora = null, ILogger? log = null)
 {
-    /// <summary>Prazo da entrada: acima disso a foto e revalidada.</summary>
+    /// <summary>Prazo minimo da entrada: antes disso a foto nunca e revalidada.</summary>
     public static readonly TimeSpan Validade = TimeSpan.FromHours(24);
+
+    /// <summary>Largura da dispersao somada a <see cref="Validade"/>, fixa por foto.</summary>
+    public static readonly TimeSpan Dispersao = TimeSpan.FromHours(12);
+
+    /// <summary>Prazo maximo da entrada: depois disso toda foto ja venceu.</summary>
+    public static readonly TimeSpan ValidadeMaxima = Validade + Dispersao;
+
+    /// <summary>
+    /// Prazo da foto: <see cref="Validade"/> mais um desvio de 0 a <see cref="Dispersao"/> derivado da
+    /// Ordem (deterministico, sem estado: leitura e poda concordam, e reiniciar nao muda o prazo).
+    /// </summary>
+    public static TimeSpan ValidadeDe(int imagemOrdem)
+    {
+        var mistura = unchecked((uint)imagemOrdem * 2654435761u);
+        var fracao = (mistura >> 8) / (double)(1u << 24);
+        return Validade + TimeSpan.FromSeconds(Math.Floor(fracao * Dispersao.TotalSeconds));
+    }
 
     /// <summary>Arquivo maior que isso e tratado como corrompido (o normal tem poucas centenas de KB).</summary>
     public const long TamanhoMaximoArquivo = 32L * 1024 * 1024;
@@ -50,7 +69,7 @@ public sealed class CacheValidacaoFotos(
         {
             if (Carregar().TryGetValue(imagemOrdem, out var entrada)
                 && entrada.Tamanho == tamanho
-                && _agora() - entrada.ValidadoEm < Validade
+                && _agora() - entrada.ValidadoEm < ValidadeDe(imagemOrdem)
                 && _agora() >= entrada.ValidadoEm)
             {
                 valida = entrada.Valida;
@@ -74,7 +93,7 @@ public sealed class CacheValidacaoFotos(
     /// Grava em disco o que mudou desde a ultima gravacao. Com <paramref name="ordensVivas"/>,
     /// antes poda as entradas que NAO apareceram nesta construcao E ja venceram. O cache e global e
     /// cada construcao enxerga so um escopo: podar o que nao esta nele apagaria as fotos exclusivas
-    /// de outro escopo. Foto removida sai do indice na hora e do cache em ate <see cref="Validade"/>.
+    /// de outro escopo. Foto removida sai do indice na hora e do cache em ate <see cref="ValidadeMaxima"/>.
     /// Falha de disco nao propaga.
     /// </summary>
     public void Gravar(IReadOnlySet<int>? ordensVivas = null)
@@ -86,7 +105,7 @@ public sealed class CacheValidacaoFotos(
             {
                 var agora = _agora();
                 foreach (var ordem in entradas
-                             .Where(e => !ordensVivas.Contains(e.Key) && agora - e.Value.ValidadoEm >= Validade)
+                             .Where(e => !ordensVivas.Contains(e.Key) && agora - e.Value.ValidadoEm >= ValidadeDe(e.Key))
                              .Select(e => e.Key).ToList())
                 {
                     entradas.Remove(ordem);

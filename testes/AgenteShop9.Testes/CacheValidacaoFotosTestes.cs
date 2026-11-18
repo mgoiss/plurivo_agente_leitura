@@ -38,7 +38,7 @@ public class CacheValidacaoFotosTestes : IDisposable
     }
 
     [Fact]
-    public void Entrada_vale_24_horas_e_depois_e_revalidada()
+    public void Entrada_vale_no_minimo_24_horas_e_no_maximo_36_e_depois_e_revalidada()
     {
         var cache = Novo();
         cache.Registrar(10, 500, true);
@@ -46,7 +46,7 @@ public class CacheValidacaoFotosTestes : IDisposable
         _agora += TimeSpan.FromHours(23) + TimeSpan.FromMinutes(59);
         Assert.True(cache.TentarObter(10, 500, out _));
 
-        _agora += TimeSpan.FromMinutes(2);
+        _agora += TimeSpan.FromHours(12) + TimeSpan.FromMinutes(2);
         Assert.False(cache.TentarObter(10, 500, out _));
     }
 
@@ -79,17 +79,52 @@ public class CacheValidacaoFotosTestes : IDisposable
         Assert.Equal(2, Novo().Quantidade);
 
         // Vencida e ausente: sai. A viva fica mesmo vencida.
-        _agora += Validade + TimeSpan.FromMinutes(1);
+        _agora += ValidadeMaxima + TimeSpan.FromMinutes(1);
         a.Gravar(new HashSet<int> { 10 });
 
         var b = Novo();
         Assert.Equal(1, b.Quantidade);
         Assert.False(b.TentarObter(11, 700, out _));
-        _agora -= Validade + TimeSpan.FromMinutes(1);
+        _agora -= ValidadeMaxima + TimeSpan.FromMinutes(1);
         Assert.True(b.TentarObter(10, 500, out _));
     }
 
     private static TimeSpan Validade => CacheValidacaoFotos.Validade;
+    private static TimeSpan ValidadeMaxima => CacheValidacaoFotos.ValidadeMaxima;
+
+    [Fact]
+    public void Validade_por_foto_fica_entre_24_e_36_h_e_e_estavel()
+    {
+        for (var ordem = 1; ordem <= 5000; ordem++)
+        {
+            var v = CacheValidacaoFotos.ValidadeDe(ordem);
+            Assert.InRange(v, Validade, ValidadeMaxima);
+            Assert.Equal(v, CacheValidacaoFotos.ValidadeDe(ordem));
+        }
+    }
+
+    [Fact]
+    public void Fotos_validadas_juntas_nao_vencem_juntas()
+    {
+        // 1621 ordens seguidas, validadas no mesmo instante: a cada hora do intervalo 24-36 h vence so uma parte.
+        var vencimentos = Enumerable.Range(1000, 1621)
+            .Select(o => (int)CacheValidacaoFotos.ValidadeDe(o).TotalHours).GroupBy(h => h).ToList();
+        Assert.Equal(12, vencimentos.Count);
+        Assert.All(vencimentos, g => Assert.InRange(g.Count(), 60, 220)); // ~135 por hora
+    }
+
+    [Fact]
+    public void Entrada_vence_so_depois_do_prazo_da_propria_foto()
+    {
+        var cache = Novo();
+        cache.Registrar(10, 500, true);
+        var prazo = CacheValidacaoFotos.ValidadeDe(10);
+
+        _agora += prazo - TimeSpan.FromMinutes(1);
+        Assert.True(cache.TentarObter(10, 500, out _));
+        _agora += TimeSpan.FromMinutes(2);
+        Assert.False(cache.TentarObter(10, 500, out _));
+    }
 
     [Fact]
     public void Arquivo_ausente_comeca_vazio()
