@@ -149,7 +149,7 @@ public class CatalogoCandidatoCacheValidacaoFotosTestes
         Assert.False(ExecutorOperacao.TentarObterOperacoesPorMetadados(
             V44 with { Operacoes = ops }, Escopo, out _, out _));
 
-        ops = new Dictionary<string, Operacao>(V44.Operacoes);
+        ops = new Dictionary<string, Operacao>(V44.Operacoes!);
         ops.Remove(Metadados);
         Assert.False(ExecutorOperacao.TentarObterOperacoesPorMetadados(
             V44 with { Operacoes = ops }, Escopo, out _, out _));
