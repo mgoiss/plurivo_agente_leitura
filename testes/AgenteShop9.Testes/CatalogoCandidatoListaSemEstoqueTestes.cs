@@ -1,5 +1,6 @@
 using AgenteShop9.Catalogos;
 using AgenteShop9.Operacoes;
+using System.Text.Json.Nodes;
 
 namespace AgenteShop9.Testes;
 
@@ -59,10 +60,23 @@ public class CatalogoCandidatoListaSemEstoqueTestes
     [Fact]
     public void Candidato_so_acrescenta_a_operacao_nova_sobre_o_catalogo_em_uso()
     {
-        var emUso = Catalogo.Analisar(Fixtures.CatalogoRealBytes);
-        var candidato = Candidato();
-        Assert.True(candidato.VersaoCatalogo > emUso.VersaoCatalogo);
-        Assert.Equal(new[] { "emissao_produtos_vendas_origem_v2" }, candidato.Operacoes!.Keys.Except(emUso.Operacoes!.Keys).ToArray());
-        Assert.All(emUso.Operacoes.Keys, nome => Assert.Contains(nome, candidato.Operacoes.Keys));
+        // Base: v44, o catálogo em uso no campo (inclui as operações de fotos). Não o catalogo.json do repo.
+        var baseV44 = Lido("catalogo.candidato-cache-validacao-fotos-v44.json");
+        var candidato = Lido("catalogo.candidato-lista-sem-estoque-v47.json");
+        Assert.True((int)candidato["versao_catalogo"]! > (int)baseV44["versao_catalogo"]!);
+
+        var opsBase = baseV44["operacoes"]!.AsObject();
+        var opsCandidato = candidato["operacoes"]!.AsObject();
+        Assert.Equal(new[] { "emissao_produtos_vendas_origem_v2" },
+            opsCandidato.Select(o => o.Key).Except(opsBase.Select(o => o.Key)).ToArray());
+        Assert.Contains("catalogo_indice_fotos_metadados", opsCandidato.Select(o => o.Key));
+        Assert.Contains("catalogo_foto_base64", opsCandidato.Select(o => o.Key));
+
+        // Só as duas operações de TRE (entrada recente) podem diferir das do v44; as demais, inclusive as de fotos, idênticas.
+        var alteradas = opsBase.Where(o => !JsonNode.DeepEquals(o.Value, opsCandidato[o.Key])).Select(o => o.Key).OrderBy(n => n).ToArray();
+        Assert.Equal(new[] { "emissao_produtos_sem_estoque", "emissao_produtos_sem_estoque_v2" }, alteradas);
     }
+
+    private static JsonNode Lido(string nome) =>
+        JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "fixtures", nome)))!;
 }
