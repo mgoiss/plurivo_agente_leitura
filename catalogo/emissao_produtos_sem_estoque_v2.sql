@@ -1,5 +1,5 @@
 -- CANDIDATO NÃO ASSINADO. Confirmar schema e paginação em homologação.
-/* Produtos comprados recentemente na filial de destino, ignorando estoque (modo
+/* Produtos com entrada recente (compra COM ou transferencia de entrada TRE) na filial de destino, ignorando estoque (modo
    "sem estoque" do robo). A media de quantidade vem das vendas reais da filial de
    origem. Filtro de classe de imposto e tabela de preco entram como parametro. */
 SELECT
@@ -31,7 +31,7 @@ INNER JOIN (
     FROM Movimento_Prod_Serv AS mp
     INNER JOIN Movimento AS m ON m.Ordem = mp.Ordem_Movimento
     WHERE mp.Linha_Excluida = 0
-      AND m.Tipo_Operacao = 'COM'
+      AND m.Tipo_Operacao IN ('COM', 'TRE')
       AND m.Ordem_Filial = @OrdemFilialDestino
       AND m.Data_Efetivado_Estoque >= DATEADD(DAY, -ISNULL(@DiasRecentes, 30), GETDATE())
 ) AS comp_dest ON comp_dest.Ordem_Prod_Serv = prod.Ordem

@@ -47,6 +47,8 @@
     <None Include="..\..\catalogo\catalogo.candidato-vendas-indice-agente-v43.json" Link="fixtures\catalogo.candidato-vendas-indice-agente-v43.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\fixtures\catalogo.base-v43.json" Link="fixtures\catalogo.base-v43.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.candidato-cache-validacao-fotos-v44.json" Link="fixtures\catalogo.candidato-cache-validacao-fotos-v44.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\catalogo\catalogo.candidato-filtro-cliente-v46.json" Link="fixtures\catalogo.candidato-filtro-cliente-v46.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\catalogo\catalogo.candidato-lista-sem-estoque-v47.json" Link="fixtures\catalogo.candidato-lista-sem-estoque-v47.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\catalogo\catalogo.json"
           Link="fixtures\catalogo-real.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
