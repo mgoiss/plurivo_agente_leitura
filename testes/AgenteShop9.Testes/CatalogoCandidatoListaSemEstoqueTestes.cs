@@ -60,19 +60,21 @@ public class CatalogoCandidatoListaSemEstoqueTestes
     [Fact]
     public void Candidato_so_acrescenta_a_operacao_nova_sobre_o_catalogo_em_uso()
     {
-        // Base: v44, o catálogo em uso no campo (inclui as operações de fotos). Não o catalogo.json do repo.
-        var baseV44 = Lido("catalogo.candidato-cache-validacao-fotos-v44.json");
+        // Base: v46 (#187), o catálogo em uso no campo: inclui fotos do v44 e cliente nas vendas/busca de clientes.
+        var baseV46 = Lido("catalogo.candidato-filtro-cliente-v46.json");
         var candidato = Lido("catalogo.candidato-lista-sem-estoque-v47.json");
-        Assert.True((int)candidato["versao_catalogo"]! > (int)baseV44["versao_catalogo"]!);
+        Assert.Equal(46, (int)baseV46["versao_catalogo"]!);
+        Assert.True((int)candidato["versao_catalogo"]! > (int)baseV46["versao_catalogo"]!);
 
-        var opsBase = baseV44["operacoes"]!.AsObject();
+        var opsBase = baseV46["operacoes"]!.AsObject();
         var opsCandidato = candidato["operacoes"]!.AsObject();
         Assert.Equal(new[] { "emissao_produtos_vendas_origem_v2" },
             opsCandidato.Select(o => o.Key).Except(opsBase.Select(o => o.Key)).ToArray());
-        Assert.Contains("catalogo_indice_fotos_metadados", opsCandidato.Select(o => o.Key));
-        Assert.Contains("catalogo_foto_base64", opsCandidato.Select(o => o.Key));
+        Assert.Empty(opsBase.Select(o => o.Key).Except(opsCandidato.Select(o => o.Key)));
+        foreach (var nome in new[] { "catalogo_indice_fotos_metadados", "catalogo_foto_base64", "emissao_clientes_busca", "emissao_clientes_por_ordem", "emissao_nfe_por_chave" })
+            Assert.Contains(nome, opsCandidato.Select(o => o.Key));
 
-        // Só as duas operações de TRE (entrada recente) podem diferir das do v44; as demais, inclusive as de fotos, idênticas.
+        // Só as duas operações de TRE (entrada recente) podem diferir do v46; as demais, inclusive fotos e clientes, idênticas.
         var alteradas = opsBase.Where(o => !JsonNode.DeepEquals(o.Value, opsCandidato[o.Key])).Select(o => o.Key).OrderBy(n => n).ToArray();
         Assert.Equal(new[] { "emissao_produtos_sem_estoque", "emissao_produtos_sem_estoque_v2" }, alteradas);
     }
